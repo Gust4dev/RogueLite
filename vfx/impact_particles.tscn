@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8s2yt9xqw9lw"]
+
+[ext_resource type="Script" path="res://vfx/impact_particles.gd" id="1_impact"]
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_1"]
+emission_shape = 1
+emission_sphere_radius = 0.2
+particle_flag_align_y = false
+direction = Vector3(0, 1, 0)
+spread = 45.0
+initial_velocity_min = 2.0
+initial_velocity_max = 4.0
+gravity = Vector3(0, -9.8, 0)
+scale_min = 0.02
+scale_max = 0.05
+color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="ImpactParticles" type="Node3D"]
+script = ExtResource("1_impact")
+
+[node name="GPUParticles3D" type="GPUParticles3D" parent="."]
+amount = 10
+lifetime = 0.3
+one_shot = true
+explosiveness = 1.0
+process_material = SubResource("ParticleProcessMaterial_1")
