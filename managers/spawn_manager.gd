@@ -37,7 +37,7 @@ func get_random_spawn_point() -> Node3D:
 		return null
 	return spawn_points[randi() % spawn_points.size()]
 
-func spawn_zombie(position: Vector3 = Vector3.ZERO) -> Node3D:
+func spawn_zombie(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
 	"""Spawna um zombie na posição especificada"""
 	if zombie_scene == null:
 		push_error("Zombie scene not loaded!")
@@ -46,15 +46,14 @@ func spawn_zombie(position: Vector3 = Vector3.ZERO) -> Node3D:
 	var zombie = zombie_scene.instantiate()
 
 	# Se não passou posição, usa um spawn point aleatório
-	if position == Vector3.ZERO:
+	if spawn_pos == Vector3.ZERO:
 		var spawn_point = get_random_spawn_point()
 		if spawn_point:
-			position = spawn_point.global_position
-
-	zombie.global_position = position
+			spawn_pos = spawn_point.global_position
 
 	# Adiciona à cena principal
 	get_tree().current_scene.add_child(zombie)
+	zombie.global_position = spawn_pos
 
 	enemies_alive += 1
 	enemy_spawned.emit(zombie)

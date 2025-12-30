@@ -75,8 +75,8 @@ func _on_ammo_changed(current_ammo: int, magazine_size: int, reserve_ammo: int) 
 func _on_time_changed(seconds_remaining: int) -> void:
 	"""Atualiza o timer"""
 	if timer_label:
-		var minutes = seconds_remaining / 60
-		var seconds = seconds_remaining % 60
+		var minutes: int = seconds_remaining / 60
+		var seconds: int = seconds_remaining % 60
 		timer_label.text = "%02d:%02d" % [minutes, seconds]
 
 		# Muda cor quando está acabando o tempo (menos de 1 minuto)

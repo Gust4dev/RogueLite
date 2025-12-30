@@ -14,9 +14,11 @@ func _ready() -> void:
 	if GameManager:
 		GameManager.start_timer()
 
-	# Conecta a arma ao HUD
-	if hud and pistol:
-		hud.set_weapon(pistol)
+	# Equipar a arma
+	if player and pistol:
+		player.equip_weapon(pistol)
+		if hud:
+			hud.set_weapon(pistol)
 
 	# Registra spawn points
 	_register_spawn_points()

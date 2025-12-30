@@ -119,10 +119,14 @@ func equip_weapon(weapon: Node3D) -> void:
 
 	# Adiciona como filho da câmera
 	if camera:
-		camera.add_child(weapon)
+		if weapon.get_parent() != camera:
+			if weapon.get_parent():
+				weapon.get_parent().remove_child(weapon)
+			camera.add_child(weapon)
 
 		# Posiciona a arma
 		weapon.position = Vector3(0.3, -0.2, -0.5)
+		weapon.rotation = Vector3.ZERO
 
 func take_damage(amount: float) -> void:
 	"""Aplica dano ao jogador"""

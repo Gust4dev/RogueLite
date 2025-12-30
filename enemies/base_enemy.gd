@@ -171,17 +171,20 @@ func _damage_flash() -> void:
 		return
 
 	# Pega ou cria material
-	var material: StandardMaterial3D
-	if mesh.get_surface_override_material_count() > 0:
+	var material: StandardMaterial3D = null
+	if mesh.get_surface_override_material(0) is StandardMaterial3D:
 		material = mesh.get_surface_override_material(0)
 	else:
 		material = StandardMaterial3D.new()
 		mesh.set_surface_override_material(0, material)
+
+	if not material:
+		return
 
 	# Flash vermelho
 	material.albedo_color = Color.RED
 
 	# Volta ao normal
 	await get_tree().create_timer(0.1).timeout
-	if material:
+	if is_instance_valid(material):
 		material.albedo_color = Color.WHITE

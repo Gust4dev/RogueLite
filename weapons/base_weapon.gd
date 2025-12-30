@@ -161,18 +161,21 @@ func add_ammo(amount: int) -> void:
 func _trigger_muzzle_flash() -> void:
 	"""Ativa o muzzle flash"""
 	if muzzle_flash:
-		muzzle_flash.visible = true
+		if muzzle_flash.has_method("trigger"):
+			muzzle_flash.trigger()
+		else:
+			muzzle_flash.visible = true
 
-		# Emite partículas se existir GPUParticles3D
-		for child in muzzle_flash.get_children():
-			if child is GPUParticles3D:
-				child.restart()
-				child.emitting = true
+			# Emite partículas se existir GPUParticles3D
+			for child in muzzle_flash.get_children():
+				if child is GPUParticles3D:
+					child.restart()
+					child.emitting = true
 
-		# Esconde depois de 0.1 segundos
-		await get_tree().create_timer(0.1).timeout
-		if muzzle_flash:
-			muzzle_flash.visible = false
+			# Esconde depois de 0.1 segundos
+			await get_tree().create_timer(0.1).timeout
+			if muzzle_flash:
+				muzzle_flash.visible = false
 
 func _apply_recoil() -> void:
 	"""Aplica recoil à câmera"""

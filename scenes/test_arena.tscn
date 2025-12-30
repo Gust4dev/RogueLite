@@ -19,6 +19,8 @@ polygons = [PackedInt32Array(3, 2, 0), PackedInt32Array(0, 2, 1)]
 [node name="TestArena" type="Node3D"]
 
 [node name="Floor" type="StaticBody3D" parent="."]
+collision_layer = 4
+collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
 mesh = SubResource("BoxMesh_floor")
@@ -55,6 +57,8 @@ shadow_enabled = true
 
 [node name="Obstacle1" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1, -10)
+collision_layer = 4
+collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacle1"]
 mesh = SubResource("BoxMesh_obstacle")
@@ -64,6 +68,8 @@ shape = SubResource("BoxShape3D_obstacle")
 
 [node name="Obstacle2" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1, -10)
+collision_layer = 4
+collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacle2"]
 mesh = SubResource("BoxMesh_obstacle")
@@ -73,6 +79,8 @@ shape = SubResource("BoxShape3D_obstacle")
 
 [node name="Obstacle3" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 1, 10)
+collision_layer = 4
+collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacle3"]
 mesh = SubResource("BoxMesh_obstacle")
@@ -82,6 +90,8 @@ shape = SubResource("BoxShape3D_obstacle")
 
 [node name="Obstacle4" type="StaticBody3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1, 10)
+collision_layer = 4
+collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacle4"]
 mesh = SubResource("BoxMesh_obstacle")
@@ -90,7 +100,9 @@ mesh = SubResource("BoxMesh_obstacle")
 shape = SubResource("BoxShape3D_obstacle")
 
 [node name="Obstacle5" type="StaticBody3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 5)
+collision_layer = 4
+collision_mask = 0
 
 [node name="MeshInstance3D" type="MeshInstance3D" parent="Obstacle5"]
 mesh = SubResource("BoxMesh_obstacle")
