@@ -29,10 +29,31 @@ var can_shoot: bool = true
 var is_reloading: bool = false
 var fire_timer: float = 0.0
 
+# Melee
+@export var melee_damage: float = 25.0
+@export var melee_range: float = 2.0
+@export var melee_cooldown: float = 0.8
+var can_melee: bool = true
+var melee_timer: float = 0.0
+
+# Nomes das animações (podem ser sobrescritos pelas classes filhas)
+var anim_shoot: String = "Shoot"
+var anim_reload: String = "Reload"
+var anim_draw: String = "Draw"
+var anim_hide: String = "Hide"
+var anim_idle: String = ""  # Deixar vazio se não houver idle
+
+# Velocidade das animações (1.0 = normal, 2.0 = dobro)
+var anim_speed_shoot: float = 2.0  # Acelera animação de tiro
+var anim_speed_reload: float = 1.5  # Acelera reload
+
 # Referências
 @onready var raycast: RayCast3D = $RayCast3D
 @onready var muzzle_flash: Node3D = $MuzzleFlash
-@onready var mesh: MeshInstance3D = $MeshInstance3D
+
+# Mesh e animação (buscados dinamicamente)
+var mesh: Node3D = null
+var animation_player: AnimationPlayer = null
 
 # Camera do player (será definida quando equipada)
 var player_camera: Camera3D = null
@@ -44,6 +65,22 @@ func _ready() -> void:
 
 	# Adiciona ao grupo weapons
 	add_to_group("weapons")
+
+	# Buscar mesh dinamicamente (pode ser PistolMesh, EnemyMesh, etc.)
+	mesh = get_node_or_null("PistolMesh")
+	if not mesh:
+		for child in get_children():
+			if child is Node3D and not child is RayCast3D:
+				mesh = child
+				break
+
+	# Buscar AnimationPlayer dentro do mesh (GLBs importados geralmente têm um)
+	if mesh:
+		animation_player = mesh.find_child("AnimationPlayer", true, false)
+		if animation_player:
+			print("[Weapon] AnimationPlayer encontrado: ", animation_player.get_animation_list())
+		else:
+			print("[Weapon] AnimationPlayer NÃO encontrado no mesh")
 
 	# Configura raycast
 	if raycast:
@@ -66,6 +103,12 @@ func _process(delta: float) -> void:
 		fire_timer -= delta
 		if fire_timer <= 0:
 			can_shoot = true
+
+	# Atualiza melee timer
+	if melee_timer > 0:
+		melee_timer -= delta
+		if melee_timer <= 0:
+			can_melee = true
 
 func _find_player_camera() -> void:
 	"""Encontra a câmera do player"""
@@ -110,7 +153,10 @@ func shoot() -> void:
 			var hit_point = raycast.get_collision_point()
 			_spawn_impact_particles(hit_point)
 
-	# Trigger muzzle flash
+	# Toca animação de tiro IMEDIATAMENTE
+	_play_animation(anim_shoot)
+
+	# Trigger muzzle flash (tem await interno, por isso vem depois)
 	_trigger_muzzle_flash()
 
 	# Aplica recoil
@@ -136,6 +182,12 @@ func reload() -> void:
 	can_shoot = false
 	reload_started.emit()
 
+	# Toca animação de reload
+	if current_ammo == 0:
+		_play_animation(anim_reload)
+	else:
+		_play_animation(anim_reload)
+
 	# Timer para reload
 	await get_tree().create_timer(reload_time).timeout
 
@@ -157,6 +209,34 @@ func add_ammo(amount: int) -> void:
 	reserve_ammo += amount
 	reserve_ammo = min(reserve_ammo, max_ammo)
 	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
+
+func melee() -> void:
+	"""Ataque corpo a corpo"""
+	if not can_melee or is_reloading:
+		return
+
+	can_melee = false
+	melee_timer = melee_cooldown
+
+	# Toca animação de melee
+	_play_animation("melee")
+
+	# Aguarda um pouco para o hit (metade da animação)
+	await get_tree().create_timer(0.2).timeout
+
+	# Detecta inimigos em range usando raycast curto
+	if raycast:
+		var original_target = raycast.target_position
+		raycast.target_position = Vector3(0, 0, -melee_range)
+		raycast.force_raycast_update()
+
+		if raycast.is_colliding():
+			var collider = raycast.get_collider()
+			if collider.has_method("take_damage"):
+				collider.take_damage(melee_damage)
+
+		# Restaura raycast original
+		raycast.target_position = original_target
 
 func _trigger_muzzle_flash() -> void:
 	"""Ativa o muzzle flash"""
@@ -209,3 +289,25 @@ func _spawn_impact_particles(position: Vector3) -> void:
 	await get_tree().create_timer(1.0).timeout
 	if impact:
 		impact.queue_free()
+
+func _play_animation(anim_name: String, custom_speed: float = -1.0) -> void:
+	"""Toca uma animação pelo nome com velocidade opcional"""
+	if not animation_player:
+		return
+	
+	if anim_name.is_empty():
+		return
+	
+	if animation_player.has_animation(anim_name):
+		# Determina velocidade baseada na animação
+		var speed = custom_speed
+		if speed < 0:
+			if anim_name == anim_shoot:
+				speed = anim_speed_shoot
+			elif anim_name == anim_reload:
+				speed = anim_speed_reload
+			else:
+				speed = 1.0
+		
+		animation_player.speed_scale = speed
+		animation_player.play(anim_name)

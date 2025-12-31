@@ -61,7 +61,17 @@ func _input(event: InputEvent) -> void:
 		else:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
+# Controle de inicialização
+var initialization_frames: int = 0
+
 func _physics_process(delta: float) -> void:
+	# Segurança inicial para evitar teleportação por colisão
+	if initialization_frames < 2:
+		initialization_frames += 1
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
+
 	# Verifica se está morto
 	if stats and not stats.is_alive:
 		return
@@ -109,6 +119,11 @@ func _process_weapon_input() -> void:
 		if current_weapon.has_method("reload"):
 			current_weapon.reload()
 
+	# Melee
+	if Input.is_action_just_pressed("melee"):
+		if current_weapon.has_method("melee"):
+			current_weapon.melee()
+
 func equip_weapon(weapon: Node3D) -> void:
 	"""Equipa uma arma"""
 	# Remove arma atual
@@ -124,8 +139,9 @@ func equip_weapon(weapon: Node3D) -> void:
 				weapon.get_parent().remove_child(weapon)
 			camera.add_child(weapon)
 
-		# Posiciona a arma
-		weapon.position = Vector3(0.3, -0.2, -0.5)
+		# Posiciona a arma centralizada (lógica)
+		# O deslocamento visual é tratado dentro da cena da própria arma
+		weapon.position = Vector3.ZERO
 		weapon.rotation = Vector3.ZERO
 
 func take_damage(amount: float) -> void:

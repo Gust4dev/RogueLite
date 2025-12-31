@@ -32,21 +32,25 @@ shape = SubResource("BoxShape3D_floor")
 [node name="WallNorth" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, -25)
 use_collision = true
+collision_layer = 4
 size = Vector3(50, 5, 1)
 
 [node name="WallSouth" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 25)
 use_collision = true
+collision_layer = 4
 size = Vector3(50, 5, 1)
 
 [node name="WallEast" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25, 2.5, 0)
 use_collision = true
+collision_layer = 4
 size = Vector3(1, 5, 50)
 
 [node name="WallWest" type="CSGBox3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25, 2.5, 0)
 use_collision = true
+collision_layer = 4
 size = Vector3(1, 5, 50)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]

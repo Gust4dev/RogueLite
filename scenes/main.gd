@@ -4,7 +4,8 @@ extends Node3D
 
 @onready var player: PlayerController = $Player
 @onready var hud = $HUD
-@onready var pistol = $Player/Camera3D/Pistol
+
+var pistol_scene = preload("res://weapons/pistol.tscn")
 
 func _ready() -> void:
 	# Aguarda um frame para garantir que tudo está carregado
@@ -14,8 +15,9 @@ func _ready() -> void:
 	if GameManager:
 		GameManager.start_timer()
 
-	# Equipar a arma
-	if player and pistol:
+	# Instanciar e equipar a arma
+	var pistol = pistol_scene.instantiate()
+	if player:
 		player.equip_weapon(pistol)
 		if hud:
 			hud.set_weapon(pistol)

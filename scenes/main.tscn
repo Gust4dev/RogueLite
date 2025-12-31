@@ -1,10 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://bqx5yt7xqw2kv"]
+[gd_scene load_steps=5 format=3 uid="uid://bqx5yt7xqw2kv"]
 
-[ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
 [ext_resource type="PackedScene" uid="uid://cqw7yt6xqw3kw" path="res://scenes/test_arena.tscn" id="1_arena"]
-[ext_resource type="PackedScene" uid="uid://cqy5yt7xqw5kz" path="res://player/player.tscn" id="2_player"]
-[ext_resource type="PackedScene" uid="uid://dpw3yt8xqw7kx" path="res://weapons/pistol.tscn" id="3_pistol"]
-[ext_resource type="PackedScene" uid="uid://dqz6yt8xqw4ky" path="res://ui/hud.tscn" id="4_hud"]
+[ext_resource type="Script" uid="uid://b22jgwqrnjtfg" path="res://scenes/main.gd" id="1_main"]
+[ext_resource type="PackedScene" uid="uid://cqy5yt7xqw5k0" path="res://player/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" uid="uid://dq06yt8xqw4ky" path="res://ui/hud.tscn" id="4_hud"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -12,9 +11,6 @@ script = ExtResource("1_main")
 [node name="TestArena" parent="." instance=ExtResource("1_arena")]
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-
-[node name="Pistol" parent="Player/Camera3D" instance=ExtResource("3_pistol")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.3, -0.2, -0.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0024437904, 0.7478297, -0.004473686)
 
 [node name="HUD" parent="." instance=ExtResource("4_hud")]
