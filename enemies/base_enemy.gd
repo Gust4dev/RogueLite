@@ -157,14 +157,24 @@ func die() -> void:
 
 	died.emit()
 
-	# Desabilita física
+	# Desabilita física e colisão imediatamente
 	set_physics_process(false)
+	set_collision_layer_value(1, false)
+	set_collision_mask_value(1, false)
 
-	# Animação de morte (fade out simples)
+	# Animação de morte: afunda no chão + fica transparente
+	var tween = create_tween()
+	tween.set_parallel(true)
+	
+	# Afunda no chão
+	tween.tween_property(self, "position:y", position.y - 2.0, 0.5).set_ease(Tween.EASE_IN)
+	
+	# Fade de transparência em todos os materiais do mesh
 	if mesh:
-		var tween = create_tween()
-		tween.tween_property(mesh, "transparency", 1.0, 0.5)
-		await tween.finished
+		_set_all_materials_transparent(mesh)
+		_fade_all_materials(mesh, tween, 0.5)
+	
+	await tween.finished
 
 	# Remove da cena
 	queue_free()
@@ -187,6 +197,67 @@ func is_alive() -> bool:
 	"""Retorna se o inimigo está vivo"""
 	return _is_alive
 
+func _find_mesh_instance() -> MeshInstance3D:
+	"""Busca o primeiro MeshInstance3D dentro do mesh"""
+	if not mesh:
+		return null
+	
+	if mesh is MeshInstance3D:
+		return mesh
+	
+	# Busca recursivamente
+	var found = mesh.find_child("*", true, false) as MeshInstance3D
+	if found:
+		return found
+	
+	for child in mesh.get_children():
+		if child is MeshInstance3D:
+			return child
+		for grandchild in child.get_children():
+			if grandchild is MeshInstance3D:
+				return grandchild
+	
+	return null
+
+func _get_or_create_material(mesh_instance: MeshInstance3D) -> StandardMaterial3D:
+	"""Retorna ou cria um material para o MeshInstance"""
+	if not mesh_instance:
+		return null
+	
+	var material: StandardMaterial3D = null
+	if mesh_instance.get_surface_override_material(0) is StandardMaterial3D:
+		material = mesh_instance.get_surface_override_material(0)
+	else:
+		material = StandardMaterial3D.new()
+		mesh_instance.set_surface_override_material(0, material)
+	
+	return material
+
+func _set_all_materials_transparent(node: Node) -> void:
+	"""Configura todos os materiais para suportar transparência"""
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			for i in range(child.get_surface_override_material_count()):
+				var mat = child.get_surface_override_material(i)
+				if mat == null:
+					mat = child.mesh.surface_get_material(i) if child.mesh else null
+				if mat == null:
+					mat = StandardMaterial3D.new()
+				if mat is StandardMaterial3D:
+					var new_mat = mat.duplicate()
+					new_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+					child.set_surface_override_material(i, new_mat)
+		_set_all_materials_transparent(child)
+
+func _fade_all_materials(node: Node, tween: Tween, duration: float) -> void:
+	"""Faz fade de todos os materiais no node"""
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			for i in range(child.get_surface_override_material_count()):
+				var mat = child.get_surface_override_material(i)
+				if mat is StandardMaterial3D:
+					tween.tween_property(mat, "albedo_color:a", 0.0, duration)
+		_fade_all_materials(child, tween, duration)
 
 func _damage_flash() -> void:
 	"""Flash vermelho ao receber dano"""
@@ -231,6 +302,15 @@ func _damage_flash() -> void:
 	await get_tree().create_timer(0.1).timeout
 	if is_instance_valid(material):
 		material.albedo_color = Color.WHITE
+
+func _play_death_animation() -> void:
+	"""Toca animação de morte (Start invertida)"""
+	if not animation_player:
+		return
+	
+	if animation_player.has_animation("Start"):
+		animation_player.play_backwards("Start")
+		await animation_player.animation_finished
 
 func _play_spawn_animation() -> void:
 	"""Toca animação de spawn (Start) e depois Idle"""

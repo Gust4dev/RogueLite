@@ -42,6 +42,10 @@ var portal: Node3D = null
 var portal_spawned: bool = false
 
 
+# Configuração de respawn
+@export var min_enemies: int = 3
+@export var respawn_delay: float = 2.0
+
 func _ready() -> void:
 	# Carrega as cenas de inimigos
 	if ResourceLoader.exists("res://enemies/zombie.tscn"):
@@ -126,6 +130,18 @@ func get_random_spawn_point() -> Node3D:
 		return null
 	return spawn_points[randi() % spawn_points.size()]
 
+func _get_valid_spawn_position(desired_pos: Vector3) -> Vector3:
+	"""Retorna uma posição navegável próxima à desejada"""
+	var maps = NavigationServer3D.get_maps()
+	if maps.is_empty():
+		# Sem mapa de navegação, retorna posição original com offset Y
+		return Vector3(desired_pos.x, desired_pos.y + 1.0, desired_pos.z)
+	
+	var map_rid = maps[0]
+	var closest_point = NavigationServer3D.map_get_closest_point(map_rid, desired_pos)
+	
+	# Adiciona offset vertical para não spawnar dentro do chão
+	return Vector3(closest_point.x, closest_point.y + 0.5, closest_point.z)
 
 func spawn_zombie(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
 	"""Spawna um zombie na posição especificada"""
@@ -144,6 +160,9 @@ func spawn_zombie(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
 		if spawn_point:
 			spawn_pos = spawn_point.global_position
 
+	# Valida a posição usando o NavigationServer3D
+	spawn_pos = _get_valid_spawn_position(spawn_pos)
+
 	# Adiciona à cena principal
 	get_tree().current_scene.add_child(zombie)
 	zombie.global_position = spawn_pos
@@ -151,7 +170,7 @@ func spawn_zombie(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
 	enemies_alive += 1
 	enemy_spawned.emit(zombie)
 
-	# Conecta ao signal de morte para decrementar contador
+	# Conecta ao signal de morte para decrementar contador e respawnar
 	if zombie.has_signal("died"):
 		zombie.died.connect(_on_enemy_died)
 
@@ -274,31 +293,12 @@ func clear_all_enemies() -> void:
 func _on_enemy_died() -> void:
 	"""Callback quando um inimigo morre"""
 	enemies_alive = max(0, enemies_alive - 1)
+	
+	# Agenda respawn se abaixo do mínimo
+	if enemies_alive < min_enemies:
+		get_tree().create_timer(respawn_delay).timeout.connect(_spawn_replacement)
 
-
-func pause_spawning() -> void:
-	"""Pausa todos os spawns"""
-	spawn_paused = true
-
-
-func resume_spawning() -> void:
-	"""Resume os spawns (se não houver boss ativo)"""
-	if not boss_active:
-		spawn_paused = false
-
-
-func get_boss_info() -> Dictionary:
-	"""Retorna informações do boss atual para UI"""
-	if current_boss and current_boss.has_method("get_boss_info"):
-		return current_boss.get_boss_info()
-	return {}
-
-
-func is_boss_active() -> bool:
-	"""Retorna se há um boss ativo"""
-	return boss_active
-
-
-func get_bosses_defeated() -> int:
-	"""Retorna número de bosses derrotados"""
-	return bosses_spawned if not boss_active else bosses_spawned - 1
+func _spawn_replacement() -> void:
+	"""Spawna um inimigo de reposição"""
+	if enemies_alive < max_enemies:
+		spawn_zombie()
