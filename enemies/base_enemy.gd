@@ -19,7 +19,7 @@ signal attack_performed()
 
 # Estado
 var current_health: float = 50.0
-var is_alive: bool = true
+var _is_alive: bool = true
 var can_attack: bool = true
 
 # Target (player)
@@ -38,7 +38,7 @@ var gravity: float = 9.8
 func _ready() -> void:
 	# Inicializa health
 	current_health = max_health
-	is_alive = true
+	_is_alive = true
 
 	# Adiciona ao grupo enemies
 	add_to_group("enemies")
@@ -59,7 +59,7 @@ func _find_player() -> void:
 		target = players[0]
 
 func _physics_process(delta: float) -> void:
-	if not is_alive:
+	if not _is_alive:
 		return
 
 	# Aplica gravidade
@@ -116,7 +116,7 @@ func _physics_process(delta: float) -> void:
 
 func take_damage(amount: float) -> void:
 	"""Aplica dano ao inimigo"""
-	if not is_alive:
+	if not _is_alive:
 		return
 
 	current_health -= amount
@@ -131,10 +131,10 @@ func take_damage(amount: float) -> void:
 
 func die() -> void:
 	"""Mata o inimigo"""
-	if not is_alive:
+	if not _is_alive:
 		return
 
-	is_alive = false
+	_is_alive = false
 	current_health = 0.0
 
 	died.emit()
@@ -153,7 +153,7 @@ func die() -> void:
 
 func attack() -> void:
 	"""Ataca o target"""
-	if not can_attack or not is_alive:
+	if not can_attack or not _is_alive:
 		return
 
 	can_attack = false
@@ -164,6 +164,11 @@ func attack() -> void:
 		target.take_damage(damage)
 
 	attack_performed.emit()
+
+func is_alive() -> bool:
+	"""Retorna se o inimigo está vivo"""
+	return _is_alive
+
 
 func _damage_flash() -> void:
 	"""Flash vermelho ao receber dano"""

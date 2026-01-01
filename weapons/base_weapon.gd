@@ -1,7 +1,7 @@
 extends Node3D
 
-# Base Weapon - Classe abstrata para todas as armas
-# Implementa sistema de tiro com raycast, ammo e reload
+# Base Weapon - Classe base para todas as armas
+# Sistema avançado de recoil, sway e feedback visual
 
 class_name BaseWeapon
 
@@ -11,14 +11,37 @@ signal ammo_changed(current_ammo: int, magazine_size: int, reserve_ammo: int)
 signal reload_started()
 signal reload_finished()
 signal weapon_empty()
+signal hit_enemy(enemy: Node3D, damage: float, is_kill: bool)
 
-# Stats da arma (para serem sobrescritos pelas classes filhas)
+# === STATS BÁSICOS ===
+@export_group("Stats")
 @export var damage: float = 10.0
 @export var fire_rate: float = 0.2
 @export var reload_time: float = 1.5
 @export var magazine_size: int = 12
 @export var max_ammo: int = 120
-@export var recoil_amount: Vector2 = Vector2(0.01, 0.02)
+
+# === CONFIGURAÇÃO DE RECOIL DA ARMA (kickback visual) ===
+@export_group("Weapon Recoil")
+@export var kickback_position: Vector3 = Vector3(0.0, 0.02, 0.08)
+@export var kickback_rotation: Vector3 = Vector3(-3.0, 1.5, 2.0)
+@export var position_randomness: Vector3 = Vector3(0.005, 0.005, 0.01)
+@export var rotation_randomness: Vector3 = Vector3(0.5, 1.0, 0.5)
+@export var kickback_speed: float = 15.0
+@export var return_speed: float = 8.0
+@export var shooting_return_speed: float = 4.0
+
+# === CONFIGURAÇÃO DE RECOIL DA CÂMERA ===
+@export_group("Camera Recoil")
+@export var camera_recoil_horizontal: float = 0.5
+@export var camera_recoil_vertical: float = 1.5
+
+# === CONFIGURAÇÃO DE SWAY ===
+@export_group("Weapon Sway")
+@export var sway_enabled: bool = true
+@export var mouse_sway_amount: Vector2 = Vector2(0.002, 0.002)
+@export var mouse_sway_max: Vector2 = Vector2(0.05, 0.03)
+@export var movement_sway_amount: float = 0.02
 
 # Ammo
 var current_ammo: int = 12
@@ -28,16 +51,31 @@ var reserve_ammo: int = 120
 var can_shoot: bool = true
 var is_reloading: bool = false
 var fire_timer: float = 0.0
+var is_shooting: bool = false  # Para detectar tiro contínuo
 
 # Referências
 @onready var raycast: RayCast3D = $RayCast3D
 @onready var muzzle_flash: Node3D = $MuzzleFlash
 @onready var mesh: MeshInstance3D = $MeshInstance3D
 
-# Camera do player (será definida quando equipada)
+# Camera do player
 var player_camera: Camera3D = null
+var camera_effects: CameraEffects = null
+
+# Sub-sistemas
+var weapon_recoil: WeaponRecoil = null
+var weapon_sway: WeaponSway = null
+
+# Posição original
+var original_position: Vector3 = Vector3.ZERO
+var original_rotation: Vector3 = Vector3.ZERO
+
 
 func _ready() -> void:
+	# Salva posição original
+	original_position = position
+	original_rotation = rotation
+
 	# Inicializa ammo
 	current_ammo = magazine_size
 	reserve_ammo = max_ammo
@@ -48,7 +86,7 @@ func _ready() -> void:
 	# Configura raycast
 	if raycast:
 		raycast.enabled = true
-		raycast.target_position = Vector3(0, 0, -100)  # 100 metros à frente
+		raycast.target_position = Vector3(0, 0, -100)
 
 	# Esconde muzzle flash inicialmente
 	if muzzle_flash:
@@ -57,8 +95,42 @@ func _ready() -> void:
 	# Obtém a câmera do player
 	_find_player_camera()
 
+	# Configura sub-sistemas
+	_setup_subsystems()
+
 	# Emite signal inicial de ammo
 	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
+
+
+func _setup_subsystems() -> void:
+	"""Configura os sub-sistemas de recoil e sway"""
+
+	# Weapon Recoil
+	weapon_recoil = WeaponRecoil.new()
+	weapon_recoil.name = "WeaponRecoil"
+	add_child(weapon_recoil)
+
+	# Configura parâmetros do recoil
+	weapon_recoil.kickback_position = kickback_position
+	weapon_recoil.kickback_rotation = kickback_rotation
+	weapon_recoil.position_randomness = position_randomness
+	weapon_recoil.rotation_randomness = rotation_randomness
+	weapon_recoil.kickback_speed = kickback_speed
+	weapon_recoil.return_speed = return_speed
+	weapon_recoil.shooting_return_speed = shooting_return_speed
+
+	# Weapon Sway
+	if sway_enabled:
+		weapon_sway = WeaponSway.new()
+		weapon_sway.name = "WeaponSway"
+		add_child(weapon_sway)
+		weapon_sway.setup(self)
+
+		# Configura parâmetros do sway
+		weapon_sway.mouse_sway_amount = mouse_sway_amount
+		weapon_sway.mouse_sway_max = mouse_sway_max
+		weapon_sway.movement_sway_amount = movement_sway_amount
+
 
 func _process(delta: float) -> void:
 	# Atualiza fire timer
@@ -67,11 +139,39 @@ func _process(delta: float) -> void:
 		if fire_timer <= 0:
 			can_shoot = true
 
+	# Detecta se parou de atirar
+	if is_shooting and can_shoot:
+		is_shooting = false
+		if weapon_recoil:
+			weapon_recoil.set_shooting_state(false)
+
+	# Aplica sway à posição (combinado com recoil)
+	_apply_combined_transforms()
+
+
+func _apply_combined_transforms() -> void:
+	"""Aplica todas as transformações combinadas"""
+	if not weapon_recoil:
+		return
+
+	# O recoil já é aplicado pelo próprio sistema WeaponRecoil
+	# Aqui só adicionamos o sway se existir
+	if weapon_sway and sway_enabled:
+		var sway_offset = weapon_sway.get_total_offset()
+		var sway_rotation = weapon_sway.get_total_rotation()
+
+		# Adiciona sway à posição atual (já com recoil)
+		position = weapon_recoil.current_position + sway_offset
+		rotation = weapon_recoil.current_rotation + sway_rotation
+
+
 func _find_player_camera() -> void:
 	"""Encontra a câmera do player"""
 	var parent = get_parent()
 	if parent is Camera3D:
 		player_camera = parent
+		camera_effects = player_camera.get_node_or_null("CameraEffects")
+
 
 func shoot() -> void:
 	"""Dispara a arma"""
@@ -82,7 +182,6 @@ func shoot() -> void:
 	# Verifica ammo
 	if current_ammo <= 0:
 		weapon_empty.emit()
-		# Auto reload se tiver ammo reserva
 		if reserve_ammo > 0:
 			reload()
 		return
@@ -94,46 +193,100 @@ func shoot() -> void:
 	# Cooldown de disparo
 	can_shoot = false
 	fire_timer = fire_rate
+	is_shooting = true
 
 	# Raycast para detectar hit
-	if raycast:
-		raycast.force_raycast_update()
-
-		if raycast.is_colliding():
-			var collider = raycast.get_collider()
-
-			# Aplica dano se o objeto tem o método take_damage
-			if collider.has_method("take_damage"):
-				collider.take_damage(damage)
-
-			# Cria impact particles na posição do hit
-			var hit_point = raycast.get_collision_point()
-			_spawn_impact_particles(hit_point)
+	_process_raycast()
 
 	# Trigger muzzle flash
 	_trigger_muzzle_flash()
 
-	# Aplica recoil
-	_apply_recoil()
+	# Aplica recoil da arma (visual)
+	_apply_weapon_recoil()
+
+	# Aplica recoil da câmera
+	_apply_camera_recoil()
+
+	# Aplica efeitos visuais
+	_apply_shooting_effects()
 
 	# Emite signal
 	weapon_fired.emit()
+
+
+func _process_raycast() -> void:
+	"""Processa o raycast e detecta hits"""
+	if not raycast:
+		return
+
+	raycast.force_raycast_update()
+
+	if raycast.is_colliding():
+		var collider = raycast.get_collider()
+
+		# Aplica dano se o objeto tem o método take_damage
+		if collider.has_method("take_damage"):
+			var was_alive = true
+			if collider.has_method("is_alive"):
+				was_alive = collider.is_alive()
+
+			collider.take_damage(damage)
+
+			# Verifica se matou
+			var is_kill = false
+			if collider.has_method("is_alive"):
+				is_kill = was_alive and not collider.is_alive()
+
+			# Emite signal de hit
+			hit_enemy.emit(collider, damage, is_kill)
+
+			# Feedback visual de hit
+			if camera_effects:
+				camera_effects.on_hit(is_kill)
+
+		# Cria impact particles
+		var hit_point = raycast.get_collision_point()
+		_spawn_impact_particles(hit_point)
+
+
+func _apply_weapon_recoil() -> void:
+	"""Aplica recoil visual à arma"""
+	if weapon_recoil:
+		weapon_recoil.set_shooting_state(true)
+		weapon_recoil.apply_recoil()
+
+
+func _apply_camera_recoil() -> void:
+	"""Aplica recoil à câmera"""
+	if camera_effects:
+		camera_effects.apply_camera_recoil(camera_recoil_horizontal, camera_recoil_vertical)
+		camera_effects.shake_shoot()
+
+
+func _apply_shooting_effects() -> void:
+	"""Aplica efeitos visuais de tiro"""
+	if camera_effects:
+		camera_effects.trigger_shooting_effects()
+
 
 func reload() -> void:
 	"""Recarrega a arma"""
 	if is_reloading:
 		return
 
-	# Verifica se precisa recarregar
 	if current_ammo >= magazine_size:
 		return
 
-	# Verifica se tem ammo reserva
 	if reserve_ammo <= 0:
 		return
 
 	is_reloading = true
 	can_shoot = false
+	is_shooting = false
+
+	if weapon_recoil:
+		weapon_recoil.set_shooting_state(false)
+
 	reload_started.emit()
 
 	# Timer para reload
@@ -152,11 +305,13 @@ func reload() -> void:
 	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
 	reload_finished.emit()
 
+
 func add_ammo(amount: int) -> void:
 	"""Adiciona munição reserva"""
 	reserve_ammo += amount
 	reserve_ammo = min(reserve_ammo, max_ammo)
 	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
+
 
 func _trigger_muzzle_flash() -> void:
 	"""Ativa o muzzle flash"""
@@ -166,46 +321,57 @@ func _trigger_muzzle_flash() -> void:
 		else:
 			muzzle_flash.visible = true
 
-			# Emite partículas se existir GPUParticles3D
 			for child in muzzle_flash.get_children():
 				if child is GPUParticles3D:
 					child.restart()
 					child.emitting = true
 
-			# Esconde depois de 0.1 segundos
 			await get_tree().create_timer(0.1).timeout
 			if muzzle_flash:
 				muzzle_flash.visible = false
 
-func _apply_recoil() -> void:
-	"""Aplica recoil à câmera"""
-	if player_camera:
-		var camera_effects = player_camera.get_node_or_null("CameraEffects")
-		if camera_effects and camera_effects.has_method("apply_recoil"):
-			camera_effects.apply_recoil(
-				randf_range(-recoil_amount.x, recoil_amount.x),
-				-recoil_amount.y
-			)
 
-func _spawn_impact_particles(position: Vector3) -> void:
-	"""Spawna partículas de impacto na posição do hit"""
-	# Verifica se a cena existe
+func _spawn_impact_particles(hit_position: Vector3) -> void:
+	"""Spawna partículas de impacto"""
 	if not ResourceLoader.exists("res://vfx/impact_particles.tscn"):
 		return
 
 	var impact_scene = load("res://vfx/impact_particles.tscn")
 	var impact = impact_scene.instantiate()
 
-	# Adiciona à cena
 	get_tree().current_scene.add_child(impact)
-	impact.global_position = position
+	impact.global_position = hit_position
 
-	# Emite partículas
 	for child in impact.get_children():
 		if child is GPUParticles3D:
 			child.emitting = true
 
-	# Remove depois de 1 segundo
 	await get_tree().create_timer(1.0).timeout
 	if impact:
 		impact.queue_free()
+
+
+# === API PARA SISTEMAS EXTERNOS ===
+
+func add_mouse_sway(input: Vector2) -> void:
+	"""Adiciona input de mouse para sway"""
+	if weapon_sway:
+		weapon_sway.add_mouse_input(input)
+
+
+func set_movement_state(moving: bool, sprinting: bool) -> void:
+	"""Define estado de movimento para sway"""
+	if weapon_sway:
+		weapon_sway.set_movement_state(moving, sprinting)
+
+
+func reset_transforms() -> void:
+	"""Reseta todas as transformações"""
+	if weapon_recoil:
+		weapon_recoil.reset()
+
+	if weapon_sway:
+		weapon_sway.reset()
+
+	position = original_position
+	rotation = original_rotation
