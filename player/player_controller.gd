@@ -108,6 +108,13 @@ func _input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# Segurança inicial para evitar teleportação por colisão
+	if initialization_frames < 2:
+		initialization_frames += 1
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
+
 	# Verifica se está morto
 	if stats and not stats.is_alive:
 		return
@@ -207,8 +214,9 @@ func equip_weapon(weapon: Node3D) -> void:
 				weapon.get_parent().remove_child(weapon)
 			camera.add_child(weapon)
 
-		# Posiciona a arma
-		weapon.position = Vector3(0.3, -0.2, -0.5)
+		# Posiciona a arma centralizada (lógica)
+		# O deslocamento visual é tratado dentro da cena da própria arma
+		weapon.position = Vector3.ZERO
 		weapon.rotation = Vector3.ZERO
 
 

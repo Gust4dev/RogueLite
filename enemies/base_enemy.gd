@@ -27,7 +27,10 @@ var target: Node3D = null
 
 # Referências
 @onready var navigation_agent: NavigationAgent3D = $NavigationAgent3D
-@onready var mesh: MeshInstance3D = $MeshInstance3D
+
+# Mesh e animação (buscados dinamicamente)
+var mesh: Node3D = null
+var animation_player: AnimationPlayer = null
 
 # Controle de ataque
 var attack_timer: float = 0.0
@@ -43,6 +46,18 @@ func _ready() -> void:
 	# Adiciona ao grupo enemies
 	add_to_group("enemies")
 
+	# Buscar mesh dinamicamente (pode ser EnemyMesh ou qualquer outro nome)
+	mesh = get_node_or_null("EnemyMesh")
+	if not mesh:
+		for child in get_children():
+			if child is Node3D and not child is NavigationAgent3D and not child is CollisionShape3D:
+				mesh = child
+				break
+
+	# Buscar AnimationPlayer dentro do mesh (GLBs importados geralmente têm um)
+	if mesh:
+		animation_player = mesh.find_child("AnimationPlayer", true, false)
+
 	# Configura NavigationAgent
 	if navigation_agent:
 		navigation_agent.path_desired_distance = 0.5
@@ -51,6 +66,9 @@ func _ready() -> void:
 
 	# Encontra o player
 	call_deferred("_find_player")
+
+	# Toca animação de spawn
+	_play_spawn_animation()
 
 func _find_player() -> void:
 	"""Encontra o player na cena"""
@@ -175,13 +193,33 @@ func _damage_flash() -> void:
 	if not mesh:
 		return
 
+	# Busca o primeiro MeshInstance3D dentro do modelo
+	var mesh_instance: MeshInstance3D = null
+	if mesh is MeshInstance3D:
+		mesh_instance = mesh
+	else:
+		mesh_instance = mesh.find_child("*", true, false) as MeshInstance3D
+		if not mesh_instance:
+			# Busca qualquer MeshInstance3D
+			for child in mesh.get_children():
+				if child is MeshInstance3D:
+					mesh_instance = child
+					break
+				for grandchild in child.get_children():
+					if grandchild is MeshInstance3D:
+						mesh_instance = grandchild
+						break
+
+	if not mesh_instance:
+		return
+
 	# Pega ou cria material
 	var material: StandardMaterial3D = null
-	if mesh.get_surface_override_material(0) is StandardMaterial3D:
-		material = mesh.get_surface_override_material(0)
+	if mesh_instance.get_surface_override_material(0) is StandardMaterial3D:
+		material = mesh_instance.get_surface_override_material(0)
 	else:
 		material = StandardMaterial3D.new()
-		mesh.set_surface_override_material(0, material)
+		mesh_instance.set_surface_override_material(0, material)
 
 	if not material:
 		return
@@ -193,3 +231,22 @@ func _damage_flash() -> void:
 	await get_tree().create_timer(0.1).timeout
 	if is_instance_valid(material):
 		material.albedo_color = Color.WHITE
+
+func _play_spawn_animation() -> void:
+	"""Toca animação de spawn (Start) e depois Idle"""
+	if not animation_player:
+		return
+
+	# Conecta sinal para quando a animação terminar
+	if animation_player.has_animation("Start"):
+		animation_player.play("Start")
+		await animation_player.animation_finished
+	
+	# Depois do Start, toca Idle em loop
+	if animation_player.has_animation("Idle"):
+		animation_player.play("Idle")
+
+func _play_animation(anim_name: String) -> void:
+	"""Toca uma animação se existir"""
+	if animation_player and animation_player.has_animation(anim_name):
+		animation_player.play(anim_name)
