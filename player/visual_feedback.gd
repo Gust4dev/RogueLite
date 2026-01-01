@@ -16,6 +16,10 @@ var hud: CanvasLayer = null
 @export var crosshair_max_expand: float = 30.0
 @export var crosshair_expand_speed: float = 20.0
 @export var crosshair_recover_speed: float = 8.0
+## Expansão por estado de movimento
+@export var crosshair_walk_expand: float = 5.0
+@export var crosshair_sprint_expand: float = 12.0
+@export var crosshair_air_expand: float = 20.0
 
 # === CONFIGURAÇÃO DO HITMARKER ===
 @export_group("Hitmarker")
@@ -61,7 +65,9 @@ var vignette_intensity: float = 0.0
 var vignette_target: float = 0.0
 
 # Estado
+var is_moving: bool = false
 var is_sprinting: bool = false
+var is_in_air: bool = false
 var current_health_percent: float = 100.0
 
 
@@ -90,18 +96,35 @@ func _process(delta: float) -> void:
 
 
 func _update_crosshair(delta: float) -> void:
-	"""Atualiza o tamanho do crosshair"""
+	"""Atualiza o tamanho do crosshair baseado no estado de movimento"""
 	if not crosshair_enabled:
 		return
 
-	# Lerp para o tamanho alvo
+	# Calcula expansão baseada no estado atual
+	var state_expand: float = 0.0
+	if is_in_air:
+		state_expand = crosshair_air_expand
+	elif is_sprinting:
+		state_expand = crosshair_sprint_expand
+	elif is_moving:
+		state_expand = crosshair_walk_expand
+
+	# O alvo base é crosshair_base_size + expansão do estado
+	var base_with_state: float = crosshair_base_size + state_expand
+
+	# Target tende ao base_with_state (mas pode estar maior por tiro)
+	if crosshair_target_size > base_with_state:
+		# Se está maior (por tiro), recupera mais devagar
+		crosshair_target_size = lerp(crosshair_target_size, base_with_state, delta * crosshair_recover_speed)
+	else:
+		# Se precisa expandir (mudou de estado), expande rápido
+		crosshair_target_size = lerp(crosshair_target_size, base_with_state, delta * crosshair_expand_speed)
+
+	# Current tende ao target
 	if crosshair_current_size < crosshair_target_size:
 		crosshair_current_size = lerp(crosshair_current_size, crosshair_target_size, delta * crosshair_expand_speed)
 	else:
 		crosshair_current_size = lerp(crosshair_current_size, crosshair_target_size, delta * crosshair_recover_speed)
-
-	# Recupera para o tamanho base
-	crosshair_target_size = lerp(crosshair_target_size, crosshair_base_size, delta * crosshair_recover_speed)
 
 
 func _update_hitmarker(delta: float) -> void:
@@ -189,8 +212,19 @@ func set_health(health_percent: float) -> void:
 	current_health_percent = health_percent
 
 
+func set_movement_state(moving: bool, sprinting: bool) -> void:
+	"""Define estado de movimento para a crosshair"""
+	is_moving = moving
+	is_sprinting = sprinting
+
+
+func set_in_air(in_air: bool) -> void:
+	"""Define se o jogador está no ar"""
+	is_in_air = in_air
+
+
 func set_sprinting(sprinting: bool) -> void:
-	"""Define estado de sprint"""
+	"""Define estado de sprint (compatibilidade)"""
 	is_sprinting = sprinting
 
 

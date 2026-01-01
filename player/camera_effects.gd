@@ -172,12 +172,18 @@ func shake_land(fall_velocity: float) -> void:
 # === API PÚBLICA - ANIMAÇÕES ===
 
 func set_movement_state(moving: bool, sprinting: bool, speed: float) -> void:
-	"""Define estado de movimento para animações"""
+	"""Define estado de movimento para animações e crosshair"""
 	if camera_animation:
 		camera_animation.set_movement_state(moving, sprinting, speed)
 
 	if visual_feedback:
-		visual_feedback.set_sprinting(sprinting)
+		visual_feedback.set_movement_state(moving, sprinting)
+
+
+func set_in_air(in_air: bool) -> void:
+	"""Define se o jogador está no ar (para crosshair)"""
+	if visual_feedback:
+		visual_feedback.set_in_air(in_air)
 
 
 func check_landing(on_floor: bool, velocity_y: float) -> void:

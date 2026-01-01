@@ -182,6 +182,12 @@ func _process(delta: float) -> void:
 		if weapon_recoil:
 			weapon_recoil.set_shooting_state(false)
 
+	# Atualiza melee timer
+	if melee_timer > 0:
+		melee_timer -= delta
+		if melee_timer <= 0:
+			can_melee = true
+
 	# Aplica sway à posição (combinado com recoil)
 	_apply_combined_transforms()
 
@@ -200,12 +206,6 @@ func _apply_combined_transforms() -> void:
 		# Adiciona sway à posição atual (já com recoil)
 		position = weapon_recoil.current_position + sway_offset
 		rotation = weapon_recoil.current_rotation + sway_rotation
-
-	# Atualiza melee timer
-	if melee_timer > 0:
-		melee_timer -= delta
-		if melee_timer <= 0:
-			can_melee = true
 
 func _find_player_camera() -> void:
 	"""Encontra a câmera do player"""

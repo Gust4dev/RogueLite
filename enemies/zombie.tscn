@@ -1,7 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://bqx4yt9xqw6mx"]
+[gd_scene load_steps=4 format=3 uid="uid://bqx4yuaxqw6mx"]
 
-[ext_resource type="Script" path="res://enemies/zombie.gd" id="1_zombie"]
-[ext_resource type="PackedScene" path="res://assets/models/enemy1.glb" id="2_zombie_mesh"]
+[ext_resource type="Script" uid="uid://bbkfvgtkj3bk1" path="res://enemies/zombie.gd" id="1_zombie"]
+[ext_resource type="PackedScene" uid="uid://b5sse3vngxsh7" path="res://assets/models/enemy1.glb" id="2_zombie_mesh"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.4
@@ -11,9 +11,10 @@ height = 1.8
 collision_layer = 2
 collision_mask = 5
 script = ExtResource("1_zombie")
+mesh_scale = 0.01
+mesh_y_offset = 2.5
 
 [node name="EnemyMesh" parent="." instance=ExtResource("2_zombie_mesh")]
-transform = Transform3D(0.01, 0, 0, 0, 0.01, 0, 0, 0, 0.01, 0, 0, 0)
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)

@@ -49,11 +49,30 @@ func _setup_crosshair_drawer() -> void:
 	if not container:
 		container = Control.new()
 		container.name = "CrosshairContainer"
-		container.set_anchors_preset(Control.PRESET_FULL_RECT)
+		# Configura para preencher toda a tela
+		container.anchor_left = 0.0
+		container.anchor_top = 0.0
+		container.anchor_right = 1.0
+		container.anchor_bottom = 1.0
+		container.offset_left = 0
+		container.offset_top = 0
+		container.offset_right = 0
+		container.offset_bottom = 0
+		container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		$Control.add_child(container)
 
 	container.add_child(crosshair_drawer)
-	crosshair_drawer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	
+	# Configura CrosshairDrawer para preencher o container inteiro
+	crosshair_drawer.anchor_left = 0.0
+	crosshair_drawer.anchor_top = 0.0
+	crosshair_drawer.anchor_right = 1.0
+	crosshair_drawer.anchor_bottom = 1.0
+	crosshair_drawer.offset_left = 0
+	crosshair_drawer.offset_top = 0
+	crosshair_drawer.offset_right = 0
+	crosshair_drawer.offset_bottom = 0
+	crosshair_drawer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	# Esconde o crosshair antigo se existir
 	if crosshair:
@@ -179,10 +198,12 @@ func update_timer(seconds: int) -> void:
 class CrosshairDrawer extends Control:
 	"""Drawer customizado para crosshair dinâmico e hitmarker"""
 
-	var crosshair_size: float = 10.0
+	## crosshair_size agora controla o GAP (distância do centro)
+	var crosshair_size: float = 2.0
 	var crosshair_color: Color = Color.WHITE
 	var crosshair_thickness: float = 2.0
-	var crosshair_gap: float = 4.0
+	## Comprimento fixo das linhas (não muda com precisão)
+	var crosshair_line_length: float = 6.0
 
 	var hitmarker_info: Dictionary = {"active": false}
 
@@ -197,11 +218,13 @@ class CrosshairDrawer extends Control:
 			_draw_hitmarker(center)
 
 	func _draw_crosshair(center: Vector2) -> void:
-		"""Desenha o crosshair em X"""
-		var gap = crosshair_gap + crosshair_size * 0.3
-		var length = crosshair_size
+		"""Desenha o crosshair em formato de '+' simples"""
+		# Gap é controlado pelo crosshair_size (precisão)
+		var gap: float = crosshair_size
+		# Comprimento das linhas é FIXO
+		var length: float = crosshair_line_length
 
-		# Linha superior
+		# Linha superior (do gap até gap + length)
 		draw_line(
 			center + Vector2(0, -gap),
 			center + Vector2(0, -gap - length),
@@ -228,9 +251,6 @@ class CrosshairDrawer extends Control:
 			center + Vector2(gap + length, 0),
 			crosshair_color, crosshair_thickness
 		)
-
-		# Ponto central (pequeno)
-		draw_circle(center, 1.5, crosshair_color)
 
 	func _draw_hitmarker(center: Vector2) -> void:
 		"""Desenha o hitmarker (X)"""

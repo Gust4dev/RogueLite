@@ -33,6 +33,7 @@ var camera_rotation: float = 0.0
 var is_moving: bool = false
 var is_sprinting: bool = false
 var was_on_floor: bool = true
+var initialization_frames: int = 0
 
 
 func _ready() -> void:
@@ -177,6 +178,7 @@ func _update_movement_systems() -> void:
 	# Atualiza camera effects
 	if camera_effects:
 		camera_effects.set_movement_state(is_moving, is_sprinting, velocity.length())
+		camera_effects.set_in_air(not is_on_floor())
 
 	# Atualiza weapon
 	if current_weapon and current_weapon.has_method("set_movement_state"):
