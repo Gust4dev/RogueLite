@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://keyitemscene"]
+
+[ext_resource type="Script" uid="uid://keyitemscript" path="res://items/key_item.gd" id="1_key"]
+
+[node name="KeyItem" type="Area3D"]
+script = ExtResource("1_key")

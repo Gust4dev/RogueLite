@@ -21,6 +21,9 @@ func _ready() -> void:
 		player.equip_weapon(pistol)
 		if hud:
 			hud.set_weapon(pistol)
+		# Registra arma no UpgradeManager
+		if UpgradeManager:
+			UpgradeManager.set_weapon(pistol)
 
 	# Registra spawn points
 	_register_spawn_points()
