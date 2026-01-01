@@ -1,7 +1,7 @@
 extends CanvasLayer
 
 # HUD - Interface do jogador
-# Mostra HP, ammo, timer, crosshair dinâmico e hitmarker
+# Mostra HP, ammo, timer, crosshair dinâmico, hitmarker, boss health, key indicator
 
 # Referências aos elementos UI
 @onready var health_bar: ProgressBar = $Control/HealthBar
@@ -10,6 +10,22 @@ extends CanvasLayer
 @onready var timer_label: Label = $Control/TimerLabel
 @onready var crosshair: Control = $Control/Crosshair
 @onready var crosshair_container: Control = $Control/CrosshairContainer
+
+# Boss UI
+@onready var boss_health_container: VBoxContainer = $Control/BossHealthContainer
+@onready var boss_name_label: Label = $Control/BossHealthContainer/BossNameLabel
+@onready var boss_health_bar: ProgressBar = $Control/BossHealthContainer/BossHealthBar
+
+# Key UI
+@onready var key_indicator: HBoxContainer = $Control/KeyIndicator
+@onready var key_icon: ColorRect = $Control/KeyIndicator/KeyIcon
+@onready var key_label: Label = $Control/KeyIndicator/KeyLabel
+
+# Boss Warning
+@onready var boss_warning: Label = $Control/BossWarning
+
+# Upgrade Indicator
+@onready var upgrade_indicator: HBoxContainer = $Control/UpgradeIndicator
 
 # Referências ao player e weapon
 var player: Node3D = null
@@ -23,11 +39,21 @@ var crosshair_drawer: CrosshairDrawer = null
 # === VIGNETTE ===
 var vignette_drawer: VignetteDrawer = null
 
+# Estado do boss
+var boss_active: bool = false
+
 
 func _ready() -> void:
 	# Conecta aos signals do GameManager
 	if GameManager:
 		GameManager.time_changed.connect(_on_time_changed)
+
+	# Conecta aos signals do SpawnManager
+	if SpawnManager:
+		SpawnManager.boss_spawning.connect(_on_boss_spawning)
+		SpawnManager.boss_health_updated.connect(_on_boss_health_updated)
+		SpawnManager.boss_defeated.connect(_on_boss_defeated)
+		SpawnManager.boss_warning.connect(_on_boss_warning)
 
 	# Encontra o player
 	call_deferred("_find_player")
@@ -37,6 +63,14 @@ func _ready() -> void:
 
 	# Cria o drawer da vignette
 	_setup_vignette_drawer()
+
+	# Esconde boss UI inicialmente
+	if boss_health_container:
+		boss_health_container.visible = false
+
+	# Esconde warning inicialmente
+	if boss_warning:
+		boss_warning.visible = false
 
 
 func _setup_crosshair_drawer() -> void:
@@ -62,7 +96,7 @@ func _setup_crosshair_drawer() -> void:
 		$Control.add_child(container)
 
 	container.add_child(crosshair_drawer)
-	
+
 	# Configura CrosshairDrawer para preencher o container inteiro
 	crosshair_drawer.anchor_left = 0.0
 	crosshair_drawer.anchor_top = 0.0
@@ -102,6 +136,12 @@ func _process(_delta: float) -> void:
 	if vignette_drawer and camera_effects:
 		vignette_drawer.intensity = camera_effects.get_vignette_intensity()
 		vignette_drawer.queue_redraw()
+
+	# Atualiza key indicator
+	_update_key_indicator()
+
+	# Atualiza upgrade indicator
+	_update_upgrade_indicator()
 
 
 func _find_player() -> void:
@@ -176,6 +216,142 @@ func _on_time_changed(seconds_remaining: int) -> void:
 			timer_label.add_theme_color_override("font_color", Color.RED)
 		else:
 			timer_label.add_theme_color_override("font_color", Color.WHITE)
+
+
+# === BOSS UI ===
+
+func _on_boss_spawning(boss_number: int) -> void:
+	"""Quando um boss vai spawnar"""
+	boss_active = true
+
+	# Mostra container de boss health
+	if boss_health_container:
+		boss_health_container.visible = true
+
+	# Atualiza nome
+	if boss_name_label:
+		var boss_names = ["The Brute", "The Ravager", "The Destroyer", "The Overlord"]
+		if boss_number > 0 and boss_number <= boss_names.size():
+			boss_name_label.text = boss_names[boss_number - 1]
+
+
+func _on_boss_health_updated(current: float, maximum: float, boss_name: String) -> void:
+	"""Atualiza a barra de vida do boss"""
+	if boss_health_bar:
+		boss_health_bar.max_value = maximum
+		boss_health_bar.value = current
+
+	if boss_name_label and boss_name != "":
+		boss_name_label.text = boss_name
+
+
+func _on_boss_defeated(boss_number: int, dropped_key: bool) -> void:
+	"""Quando um boss é derrotado"""
+	boss_active = false
+
+	# Esconde container de boss health com fade
+	if boss_health_container:
+		var tween = create_tween()
+		tween.tween_property(boss_health_container, "modulate:a", 0.0, 0.5)
+		await tween.finished
+		boss_health_container.visible = false
+		boss_health_container.modulate.a = 1.0
+
+	# Mostra mensagem se dropou key
+	if dropped_key:
+		_show_key_dropped_message()
+
+
+func _on_boss_warning(seconds_until_spawn: int) -> void:
+	"""Aviso antes do boss spawnar"""
+	if boss_warning:
+		boss_warning.visible = true
+		boss_warning.text = "BOSS INCOMING!"
+
+		# Animação pulsante
+		var tween = create_tween()
+		tween.set_loops(seconds_until_spawn)
+		tween.tween_property(boss_warning, "modulate:a", 0.3, 0.4)
+		tween.tween_property(boss_warning, "modulate:a", 1.0, 0.4)
+
+		await get_tree().create_timer(seconds_until_spawn).timeout
+		boss_warning.visible = false
+
+
+func _show_key_dropped_message() -> void:
+	"""Mostra mensagem quando key é dropada"""
+	if boss_warning:
+		boss_warning.text = "KEY DROPPED!"
+		boss_warning.add_theme_color_override("font_color", Color(1.0, 0.8, 0.0))
+		boss_warning.visible = true
+
+		await get_tree().create_timer(2.0).timeout
+
+		boss_warning.visible = false
+		boss_warning.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2))
+
+
+# === KEY UI ===
+
+func _update_key_indicator() -> void:
+	"""Atualiza o indicador de key"""
+	if not key_icon or not key_label:
+		return
+
+	if GameManager and GameManager.has_boss_key:
+		key_icon.color = Color(1.0, 0.8, 0.0)  # Dourado
+		key_label.text = " Key"
+		key_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.0))
+	else:
+		key_icon.color = Color(0.3, 0.3, 0.3)  # Cinza
+		key_label.text = " No Key"
+		key_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+
+
+# === UPGRADE UI ===
+
+func _update_upgrade_indicator() -> void:
+	"""Atualiza indicadores de upgrades ativos"""
+	if not upgrade_indicator:
+		return
+
+	if not UpgradeManager:
+		return
+
+	# Limpa indicadores anteriores
+	for child in upgrade_indicator.get_children():
+		child.queue_free()
+
+	# Cria indicadores para cada upgrade ativo
+	var active = UpgradeManager.get_active_upgrades()
+	for upgrade_id in active:
+		var data = active[upgrade_id]
+		var indicator = _create_upgrade_indicator(data)
+		upgrade_indicator.add_child(indicator)
+
+
+func _create_upgrade_indicator(data) -> Control:
+	"""Cria um pequeno indicador de upgrade"""
+	var container = PanelContainer.new()
+	container.custom_minimum_size = Vector2(40, 40)
+
+	var style = StyleBoxFlat.new()
+	style.bg_color = data.color if "color" in data else Color(0.3, 0.3, 0.3)
+	style.bg_color.a = 0.7
+	style.corner_radius_top_left = 5
+	style.corner_radius_top_right = 5
+	style.corner_radius_bottom_left = 5
+	style.corner_radius_bottom_right = 5
+	container.add_theme_stylebox_override("panel", style)
+
+	# Level label
+	var level_label = Label.new()
+	level_label.text = str(data.current_level) if "current_level" in data else "1"
+	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	container.add_child(level_label)
+
+	return container
 
 
 func update_hp(current: float, maximum: float) -> void:
