@@ -3,8 +3,6 @@ extends Node
 # Upgrade Manager - Singleton que gerencia o sistema de upgrades
 # Controla pool de upgrades, aplicação e UI
 
-class_name UpgradeManagerClass
-
 # === SIGNALS ===
 signal upgrade_screen_opened()
 signal upgrade_screen_closed()
@@ -21,8 +19,19 @@ class UpgradeData:
 	var max_level: int = 3
 	var current_level: int = 0
 
-	func get_level_description(level: int) -> String:
+	func get_level_description(_level: int) -> String:
 		return description
+	
+	func duplicate() -> UpgradeData:
+		var copy = UpgradeData.new()
+		copy.id = id
+		copy.name = name
+		copy.description = description
+		copy.icon_path = icon_path
+		copy.color = color
+		copy.max_level = max_level
+		copy.current_level = current_level
+		return copy
 
 # === CONSTANTS ===
 const MAX_ACTIVE_UPGRADES = 3
@@ -35,7 +44,7 @@ var upgrade_pool: Dictionary = {}
 var active_upgrades: Dictionary = {}
 
 # Referência à UI de upgrade
-var upgrade_ui: Control = null
+var upgrade_ui: Node = null
 
 # Referência ao player e weapon
 var player: Node3D = null
@@ -171,6 +180,9 @@ func show_upgrade_screen() -> void:
 	"""Mostra a tela de seleção de upgrade"""
 	# Pausa o jogo
 	get_tree().paused = true
+	
+	# Libera o cursor do mouse
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
 	# Gera opções aleatórias
 	var options = generate_upgrade_options(UPGRADE_OPTIONS_COUNT)
@@ -180,8 +192,12 @@ func show_upgrade_screen() -> void:
 		_create_upgrade_ui()
 
 	if upgrade_ui:
-		upgrade_ui.visible = true
-		upgrade_ui.show_options(options)
+		if upgrade_ui.has_method("show"):
+			upgrade_ui.show()
+		else:
+			upgrade_ui.set("visible", true)
+		if upgrade_ui.has_method("show_options"):
+			upgrade_ui.show_options(options)
 
 	upgrade_screen_opened.emit()
 
@@ -189,10 +205,16 @@ func show_upgrade_screen() -> void:
 func hide_upgrade_screen() -> void:
 	"""Esconde a tela de upgrade"""
 	if upgrade_ui:
-		upgrade_ui.visible = false
+		if upgrade_ui.has_method("hide"):
+			upgrade_ui.hide()
+		else:
+			upgrade_ui.set("visible", false)
 
 	# Resume o jogo
 	get_tree().paused = false
+	
+	# Recaptura o cursor do mouse
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 	upgrade_screen_closed.emit()
 
@@ -403,7 +425,7 @@ func _create_upgrade_ui() -> void:
 		get_tree().current_scene.add_child(upgrade_ui)
 
 
-func _create_basic_upgrade_ui() -> Control:
+func _create_basic_upgrade_ui() -> CanvasLayer:
 	"""Cria uma UI básica de upgrade (fallback)"""
 	var canvas = CanvasLayer.new()
 	canvas.layer = 100

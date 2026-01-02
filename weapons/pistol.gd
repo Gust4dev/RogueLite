@@ -16,8 +16,7 @@ func _ready() -> void:
 	damage = 20.0              # Dano bom para pistola
 	fire_rate = 0.15           # Mais rápido para ser responsivo
 	reload_time = 1.0          # Reload rápido
-	magazine_size = 15         # Magazine um pouco maior
-	max_ammo = 150             # Mais munição total
+	magazine_size = 15         # 15 balas no pente (reload infinito)
 
 	# === RECOIL DA ARMA (kickback visual) ===
 	# Movimento para trás quando atira

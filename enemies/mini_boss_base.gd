@@ -274,7 +274,7 @@ func _spawn_key() -> void:
 
 	var key = key_scene.instantiate()
 	get_tree().current_scene.add_child(key)
-	key.global_position = global_position + Vector3(0, 1, 0)
+	key.global_position = global_position + Vector3(0, 6, 0)
 
 
 func _boss_death_animation() -> void:

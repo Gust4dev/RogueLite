@@ -80,6 +80,7 @@ func _create_portal_visual() -> void:
 
 	portal_mesh.mesh = torus
 	portal_mesh.rotation.x = PI / 2  # Vertical
+	portal_mesh.position.y = 2.0  # Eleva o portal acima do chão
 
 	# Material com emissão
 	var material = StandardMaterial3D.new()
@@ -101,6 +102,7 @@ func _create_portal_visual() -> void:
 	plane.size = Vector2(3, 3)
 	center_mesh.mesh = plane
 	center_mesh.rotation.x = PI / 2
+	center_mesh.position.y = 2.0  # Mesmo Y do portal
 
 	var center_material = StandardMaterial3D.new()
 	center_material.albedo_color = Color(0.1, 0.2, 0.5, 0.5)
@@ -118,6 +120,7 @@ func _create_portal_visual() -> void:
 	shape.radius = 2.0
 	shape.height = 3.0
 	collision.shape = shape
+	collision.position.y = 2.0  # Mesma altura do visual
 	add_child(collision)
 
 	# Partículas

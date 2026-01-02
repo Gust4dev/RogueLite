@@ -36,6 +36,11 @@ func _register_spawn_points() -> void:
 	var spawn_points = get_tree().get_nodes_in_group("spawn_points")
 	for point in spawn_points:
 		SpawnManager.register_spawn_point(point)
+	
+	# Registra boss spawn point
+	var boss_points = get_tree().get_nodes_in_group("boss_spawn_point")
+	if boss_points.size() > 0:
+		SpawnManager.register_boss_spawn_point(boss_points[0])
 
 func _spawn_test_zombies() -> void:
 	"""Spawna alguns zombies para teste"""

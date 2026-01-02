@@ -118,7 +118,7 @@ func _fire_extra_shot() -> void:
 	# Consome munição
 	weapon.current_ammo -= 1
 	if weapon.has_signal("ammo_changed"):
-		weapon.ammo_changed.emit(weapon.current_ammo, weapon.magazine_size, weapon.reserve_ammo)
+		weapon.ammo_changed.emit(weapon.current_ammo, weapon.magazine_size)
 
 	# Efeitos visuais mínimos (sem muzzle flash para não sobrecarregar)
 	if weapon.has_method("_apply_weapon_recoil"):

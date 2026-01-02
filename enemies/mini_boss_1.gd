@@ -27,6 +27,6 @@ func _ready() -> void:
 
 	# Mesh adjustments (para o modelo enemy1.glb)
 	mesh_scale = 0.015  # Maior que zombies normais
-	mesh_y_offset = 2.5
+	mesh_y_offset = 6.0
 
 	super._ready()

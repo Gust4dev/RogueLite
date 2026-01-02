@@ -106,8 +106,10 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0
 		velocity.z = 0
 
-		# Olha para o player
-		look_at(Vector3(target.global_position.x, global_position.y, target.global_position.z))
+		# Olha para o player (com verificação de distância)
+		var look_target = Vector3(target.global_position.x, global_position.y, target.global_position.z)
+		if global_position.distance_to(look_target) > 0.1:
+			look_at(look_target)
 
 		# Ataca
 		if can_attack:
@@ -125,9 +127,11 @@ func _physics_process(delta: float) -> void:
 			velocity.x = direction.x * speed
 			velocity.z = direction.z * speed
 
-			# Olha para onde está indo
+			# Olha para onde está indo (com verificação de distância)
 			if direction.length() > 0.1:
-				look_at(Vector3(global_position.x + direction.x, global_position.y, global_position.z + direction.z))
+				var look_target = Vector3(global_position.x + direction.x, global_position.y, global_position.z + direction.z)
+				if global_position.distance_to(look_target) > 0.1:
+					look_at(look_target)
 
 	# Atualiza movimento
 	move_and_slide()

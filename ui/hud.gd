@@ -183,8 +183,7 @@ func set_weapon(weapon: Node3D) -> void:
 		# Atualiza ammo inicial
 		_on_ammo_changed(
 			current_weapon.current_ammo,
-			current_weapon.magazine_size,
-			current_weapon.reserve_ammo
+			current_weapon.magazine_size
 		)
 
 
@@ -198,10 +197,10 @@ func _on_health_changed(current_health: float, max_health: float) -> void:
 		health_label.text = "%d / %d" % [int(current_health), int(max_health)]
 
 
-func _on_ammo_changed(current_ammo: int, magazine_size: int, reserve_ammo: int) -> void:
-	"""Atualiza o contador de munição"""
+func _on_ammo_changed(current_ammo: int, magazine_size: int) -> void:
+	"""Atualiza o contador de munição (reload infinito estilo Overwatch)"""
 	if ammo_label:
-		ammo_label.text = "%d / %d | %d" % [current_ammo, magazine_size, reserve_ammo]
+		ammo_label.text = "%d / %d" % [current_ammo, magazine_size]
 
 
 func _on_time_changed(seconds_remaining: int) -> void:
@@ -359,9 +358,9 @@ func update_hp(current: float, maximum: float) -> void:
 	_on_health_changed(current, maximum)
 
 
-func update_ammo(current: int, mag_size: int, reserve: int) -> void:
+func update_ammo(current: int, mag_size: int) -> void:
 	"""Método público para atualizar ammo"""
-	_on_ammo_changed(current, mag_size, reserve)
+	_on_ammo_changed(current, mag_size)
 
 
 func update_timer(seconds: int) -> void:

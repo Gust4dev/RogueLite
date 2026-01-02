@@ -7,7 +7,7 @@ class_name BaseWeapon
 
 # Signals
 signal weapon_fired()
-signal ammo_changed(current_ammo: int, magazine_size: int, reserve_ammo: int)
+signal ammo_changed(current_ammo: int, magazine_size: int)
 signal reload_started()
 signal reload_finished()
 signal weapon_empty()
@@ -19,7 +19,6 @@ signal hit_enemy(enemy: Node3D, damage: float, is_kill: bool)
 @export var fire_rate: float = 0.2
 @export var reload_time: float = 1.5
 @export var magazine_size: int = 12
-@export var max_ammo: int = 120
 
 # === CONFIGURAÇÃO DE RECOIL DA ARMA (kickback visual) ===
 @export_group("Weapon Recoil")
@@ -45,7 +44,6 @@ signal hit_enemy(enemy: Node3D, damage: float, is_kill: bool)
 
 # Ammo
 var current_ammo: int = 12
-var reserve_ammo: int = 120
 
 # Controle de disparo
 var can_shoot: bool = true
@@ -99,7 +97,6 @@ func _ready() -> void:
 
 	# Inicializa ammo
 	current_ammo = magazine_size
-	reserve_ammo = max_ammo
 
 	# Adiciona ao grupo weapons
 	add_to_group("weapons")
@@ -136,7 +133,7 @@ func _ready() -> void:
 	_setup_subsystems()
 
 	# Emite signal inicial de ammo
-	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
+	ammo_changed.emit(current_ammo, magazine_size)
 
 
 func _setup_subsystems() -> void:
@@ -224,13 +221,12 @@ func shoot() -> void:
 	# Verifica ammo
 	if current_ammo <= 0:
 		weapon_empty.emit()
-		if reserve_ammo > 0:
-			reload()
+		reload()
 		return
 
 	# Decrementa ammo
 	current_ammo -= 1
-	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
+	ammo_changed.emit(current_ammo, magazine_size)
 
 	# Cooldown de disparo
 	can_shoot = false
@@ -315,14 +311,11 @@ func _apply_shooting_effects() -> void:
 
 
 func reload() -> void:
-	"""Recarrega a arma"""
+	"""Recarrega a arma (reload infinito estilo Overwatch)"""
 	if is_reloading:
 		return
 
 	if current_ammo >= magazine_size:
-		return
-
-	if reserve_ammo <= 0:
 		return
 
 	is_reloading = true
@@ -335,33 +328,26 @@ func reload() -> void:
 	reload_started.emit()
 
 	# Toca animação de reload
-	if current_ammo == 0:
-		_play_animation(anim_reload)
-	else:
-		_play_animation(anim_reload)
+	_play_animation(anim_reload)
 
 	# Timer para reload
 	await get_tree().create_timer(reload_time).timeout
 
-	# Calcula ammo a recarregar
-	var ammo_needed = magazine_size - current_ammo
-	var ammo_to_reload = min(ammo_needed, reserve_ammo)
-
-	current_ammo += ammo_to_reload
-	reserve_ammo -= ammo_to_reload
+	# Reload infinito - sempre enche o magazine completamente
+	current_ammo = magazine_size
 
 	is_reloading = false
 	can_shoot = true
 
-	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
+	ammo_changed.emit(current_ammo, magazine_size)
 	reload_finished.emit()
 
 
 func add_ammo(amount: int) -> void:
-	"""Adiciona munição reserva"""
-	reserve_ammo += amount
-	reserve_ammo = min(reserve_ammo, max_ammo)
-	ammo_changed.emit(current_ammo, magazine_size, reserve_ammo)
+	"""Adiciona munição diretamente ao magazine (reload infinito)"""
+	current_ammo += amount
+	current_ammo = min(current_ammo, magazine_size)
+	ammo_changed.emit(current_ammo, magazine_size)
 
 
 func _trigger_muzzle_flash() -> void:

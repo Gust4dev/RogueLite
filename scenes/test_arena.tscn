@@ -131,3 +131,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0.5, 15)
 
 [node name="SpawnPoint5" type="Node3D" parent="." groups=["spawn_points"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -20)
+
+[node name="BossSpawnPoint" type="Node3D" parent="." groups=["boss_spawn_point"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 15)

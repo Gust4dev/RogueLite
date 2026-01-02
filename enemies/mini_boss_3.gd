@@ -32,6 +32,6 @@ func _ready() -> void:
 
 	# Mesh adjustments
 	mesh_scale = 0.019
-	mesh_y_offset = 2.5
+	mesh_y_offset = 8.0
 
 	super._ready()

@@ -67,11 +67,11 @@ func _on_weapon_empty() -> void:
 			weapon.reload()
 
 
-func _on_ammo_changed(current: int, mag_size: int, reserve: int) -> void:
-	"""Monitora munição para auto reload"""
+func _on_ammo_changed(current: int, mag_size: int) -> void:
+	"""Monitora munição para auto reload (reload infinito)"""
 	if auto_reload and level >= 3:
-		if current == 0 and reserve > 0:
-			# Inicia reload automaticamente
+		if current == 0:
+			# Inicia reload automaticamente (reload agora é sempre infinito)
 			if weapon and not weapon.is_reloading:
 				await get_tree().create_timer(0.1).timeout
 				if weapon and weapon.has_method("reload"):

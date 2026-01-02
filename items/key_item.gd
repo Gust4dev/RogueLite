@@ -28,6 +28,8 @@ func _ready() -> void:
 	# Configura collision
 	collision_layer = 0
 	collision_mask = 1  # Apenas player
+	monitoring = true  # Habilita detecção de colisão
+	monitorable = true
 
 	# Conecta signal de colisão
 	body_entered.connect(_on_body_entered)
@@ -78,13 +80,15 @@ func _create_key_visual() -> void:
 	material.roughness = 0.2
 
 	mesh_instance.set_surface_override_material(0, material)
+	mesh_instance.position.y = 1.0  # Eleva mesh acima do chão
 	add_child(mesh_instance)
 
 	# Collision shape
 	var collision = CollisionShape3D.new()
 	var shape = SphereShape3D.new()
-	shape.radius = 1.0
+	shape.radius = 1.5  # Maior raio para facilitar coleta
 	collision.shape = shape
+	collision.position.y = 1.0  # Eleva collision para mesma altura do mesh
 	add_child(collision)
 
 

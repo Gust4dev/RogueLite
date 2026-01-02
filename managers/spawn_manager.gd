@@ -282,6 +282,30 @@ func _spawn_portal() -> void:
 	portal_spawned = true
 
 
+func _input(event: InputEvent) -> void:
+	"""Debug hotkeys - só funcionam em debug builds"""
+	if not OS.is_debug_build():
+		return
+	
+	if event is InputEventKey and event.pressed:
+		match event.keycode:
+			KEY_F9:
+				# Spawn próximo boss imediatamente
+				if bosses_spawned < boss_scenes.size() and not boss_active:
+					print("[DEBUG] Spawning boss ", bosses_spawned + 1)
+					spawn_boss(bosses_spawned)
+					bosses_spawned += 1
+				elif boss_active:
+					print("[DEBUG] Boss já ativo!")
+				else:
+					print("[DEBUG] Todos os bosses já spawned!")
+			KEY_F10:
+				# Dar key ao player
+				if GameManager:
+					GameManager.has_boss_key = true
+					print("[DEBUG] Key dada ao player!")
+
+
 func clear_all_enemies() -> void:
 	"""Remove todos os inimigos da cena"""
 	var enemies = get_tree().get_nodes_in_group("enemies")
