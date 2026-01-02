@@ -39,6 +39,17 @@ var crosshair_drawer: CrosshairDrawer = null
 # === VIGNETTE ===
 var vignette_drawer: VignetteDrawer = null
 
+# === XP SYSTEM ===
+var xp_bar: ProgressBar = null
+var level_label: Label = null
+
+# === DASH SYSTEM ===
+var dash_container: HBoxContainer = null
+var dash_indicators: Array[ProgressBar] = []
+
+# === LEVEL UP SCREEN ===
+var level_up_screen: LevelUpScreen = null
+
 # Estado do boss
 var boss_active: bool = false
 
@@ -71,6 +82,20 @@ func _ready() -> void:
 	# Esconde warning inicialmente
 	if boss_warning:
 		boss_warning.visible = false
+
+	# Configura XP Bar e Level
+	_setup_xp_ui()
+
+	# Configura Dash Indicators
+	_setup_dash_indicators()
+
+	# Configura Level Up Screen
+	_setup_level_up_screen()
+
+	# Conecta signals do XPManager
+	if XPManager:
+		XPManager.xp_changed.connect(_on_xp_changed)
+		XPManager.level_up.connect(_on_level_up)
 
 
 func _setup_crosshair_drawer() -> void:
@@ -125,6 +150,116 @@ func _setup_vignette_drawer() -> void:
 	$Control.move_child(vignette_drawer, 0)
 
 
+func _setup_xp_ui() -> void:
+	"""Configura barra de XP e label de level"""
+	# Container para XP no canto inferior
+	var xp_container = HBoxContainer.new()
+	xp_container.name = "XPContainer"
+	xp_container.anchor_left = 0.3
+	xp_container.anchor_right = 0.7
+	xp_container.anchor_top = 0.95
+	xp_container.anchor_bottom = 0.98
+	xp_container.offset_left = 0
+	xp_container.offset_right = 0
+	xp_container.offset_top = 0
+	xp_container.offset_bottom = 0
+	xp_container.add_theme_constant_override("separation", 10)
+	$Control.add_child(xp_container)
+
+	# Level Label
+	level_label = Label.new()
+	level_label.name = "LevelLabel"
+	level_label.text = "Lv. 1"
+	level_label.add_theme_font_size_override("font_size", 18)
+	level_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
+	level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	xp_container.add_child(level_label)
+
+	# XP Bar
+	xp_bar = ProgressBar.new()
+	xp_bar.name = "XPBar"
+	xp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	xp_bar.max_value = 100
+	xp_bar.value = 0
+	xp_bar.show_percentage = false
+	xp_bar.custom_minimum_size = Vector2(0, 12)
+
+	# Estilo da XP bar
+	var style_bg = StyleBoxFlat.new()
+	style_bg.bg_color = Color(0.15, 0.15, 0.2, 0.8)
+	style_bg.corner_radius_top_left = 4
+	style_bg.corner_radius_top_right = 4
+	style_bg.corner_radius_bottom_left = 4
+	style_bg.corner_radius_bottom_right = 4
+	xp_bar.add_theme_stylebox_override("background", style_bg)
+
+	var style_fill = StyleBoxFlat.new()
+	style_fill.bg_color = Color(0.3, 0.8, 1.0, 0.9)
+	style_fill.corner_radius_top_left = 4
+	style_fill.corner_radius_top_right = 4
+	style_fill.corner_radius_bottom_left = 4
+	style_fill.corner_radius_bottom_right = 4
+	xp_bar.add_theme_stylebox_override("fill", style_fill)
+
+	xp_container.add_child(xp_bar)
+
+
+func _setup_dash_indicators() -> void:
+	"""Configura indicadores de cargas de dash"""
+	dash_container = HBoxContainer.new()
+	dash_container.name = "DashContainer"
+	dash_container.anchor_left = 0.02
+	dash_container.anchor_right = 0.15
+	dash_container.anchor_top = 0.92
+	dash_container.anchor_bottom = 0.95
+	dash_container.add_theme_constant_override("separation", 5)
+	$Control.add_child(dash_container)
+
+	# Label "DASH"
+	var dash_label = Label.new()
+	dash_label.text = "DASH"
+	dash_label.add_theme_font_size_override("font_size", 12)
+	dash_label.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0))
+	dash_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	dash_container.add_child(dash_label)
+
+	# 3 indicadores de carga
+	for i in range(3):
+		var indicator = ProgressBar.new()
+		indicator.name = "DashCharge_" + str(i)
+		indicator.custom_minimum_size = Vector2(30, 10)
+		indicator.max_value = 100
+		indicator.value = 100
+		indicator.show_percentage = false
+
+		# Estilo
+		var bg = StyleBoxFlat.new()
+		bg.bg_color = Color(0.2, 0.2, 0.3, 0.8)
+		bg.corner_radius_top_left = 2
+		bg.corner_radius_top_right = 2
+		bg.corner_radius_bottom_left = 2
+		bg.corner_radius_bottom_right = 2
+		indicator.add_theme_stylebox_override("background", bg)
+
+		var fill = StyleBoxFlat.new()
+		fill.bg_color = Color(0.3, 0.8, 1.0, 0.9)
+		fill.corner_radius_top_left = 2
+		fill.corner_radius_top_right = 2
+		fill.corner_radius_bottom_left = 2
+		fill.corner_radius_bottom_right = 2
+		indicator.add_theme_stylebox_override("fill", fill)
+
+		dash_container.add_child(indicator)
+		dash_indicators.append(indicator)
+
+
+func _setup_level_up_screen() -> void:
+	"""Configura a tela de level up"""
+	level_up_screen = LevelUpScreen.new()
+	level_up_screen.name = "LevelUpScreen"
+	get_tree().root.add_child.call_deferred(level_up_screen)
+
+
 func _process(_delta: float) -> void:
 	# Atualiza crosshair com dados do camera_effects
 	if crosshair_drawer and camera_effects:
@@ -142,6 +277,9 @@ func _process(_delta: float) -> void:
 
 	# Atualiza upgrade indicator
 	_update_upgrade_indicator()
+
+	# Atualiza dash indicators
+	_update_dash_indicators()
 
 
 func _find_player() -> void:
@@ -366,6 +504,67 @@ func update_ammo(current: int, mag_size: int) -> void:
 func update_timer(seconds: int) -> void:
 	"""Método público para atualizar timer"""
 	_on_time_changed(seconds)
+
+
+# === XP SYSTEM UPDATES ===
+
+func _update_dash_indicators() -> void:
+	"""Atualiza indicadores de cargas de dash"""
+	if dash_indicators.is_empty():
+		return
+
+	if not player_controller:
+		return
+
+	var dash_sys = player_controller.get("dash_system")
+	if not dash_sys:
+		dash_sys = player_controller.get_node_or_null("DashSystem")
+
+	if not dash_sys:
+		return
+
+	var charges = dash_sys.get("charges") if dash_sys else 3
+	var charge_cooldown = dash_sys.get("charge_cooldown") if dash_sys else 10.0
+
+	for i in range(dash_indicators.size()):
+		var indicator: ProgressBar = dash_indicators[i]
+		if i < charges:
+			# Carga disponível
+			indicator.value = 100
+			indicator.self_modulate = Color.WHITE
+		else:
+			# Carga em cooldown
+			var timer_value = dash_sys.charge_timers[i] if i < dash_sys.charge_timers.size() else 0.0
+			var progress = (1.0 - timer_value / charge_cooldown) * 100.0
+			indicator.value = progress
+			indicator.self_modulate = Color(0.6, 0.6, 0.6)
+
+
+func _on_xp_changed(current: int, required: int) -> void:
+	"""Callback quando XP muda"""
+	if xp_bar:
+		xp_bar.max_value = required
+		xp_bar.value = current
+
+		# Animação suave (opcional)
+		var tween = create_tween()
+		tween.tween_property(xp_bar, "value", current, 0.2).set_ease(Tween.EASE_OUT)
+
+
+func _on_level_up(new_level: int) -> void:
+	"""Callback quando sobe de level"""
+	# Atualiza label
+	if level_label:
+		level_label.text = "Lv. " + str(new_level)
+
+		# Animação de destaque
+		var tween = create_tween()
+		tween.tween_property(level_label, "scale", Vector2(1.3, 1.3), 0.15).set_ease(Tween.EASE_OUT)
+		tween.tween_property(level_label, "scale", Vector2.ONE, 0.2).set_ease(Tween.EASE_IN)
+
+	# Mostra tela de level up
+	if level_up_screen:
+		level_up_screen.show_level_up_options()
 
 
 # === CLASSES INTERNAS PARA DESENHO ===

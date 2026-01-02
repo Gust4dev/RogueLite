@@ -271,3 +271,35 @@ func reset_effects() -> void:
 func apply_recoil(horizontal: float, vertical: float) -> void:
 	"""Compatibilidade com sistema antigo - agora usa o novo sistema"""
 	apply_camera_recoil(horizontal * 100, vertical * 100)
+
+
+# === DASH EFFECTS ===
+
+func on_dash_start() -> void:
+	"""Efeitos visuais quando o dash inicia - máximo impacto"""
+	if not camera:
+		return
+
+	# FOV punch instantâneo (aumenta e volta)
+	var base_fov = camera.fov
+	var tween = create_tween()
+	tween.tween_property(camera, "fov", base_fov + 20.0, 0.05).set_ease(Tween.EASE_OUT)
+	tween.tween_property(camera, "fov", base_fov, 0.25).set_ease(Tween.EASE_OUT)
+
+	# Screen shake intenso mas curto
+	if camera_shake:
+		camera_shake.add_trauma(0.4)
+
+	# Roll da câmera na direção do movimento
+	var roll_tween = create_tween()
+	var roll_amount = deg_to_rad(8.0)
+	roll_tween.tween_property(camera, "rotation:z", roll_amount, 0.06).set_ease(Tween.EASE_OUT)
+	roll_tween.tween_property(camera, "rotation:z", 0.0, 0.15).set_ease(Tween.EASE_OUT)
+
+
+func on_dash_end() -> void:
+	"""Efeitos visuais quando o dash termina"""
+	# Pequeno shake de desaceleração
+	if camera_shake:
+		camera_shake.add_trauma(0.1)
+

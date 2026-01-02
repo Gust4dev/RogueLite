@@ -99,15 +99,20 @@ func _calculate_boss_stats() -> void:
 	match boss_number:
 		1:
 			max_health = 200.0
+			xp_reward = 100
 		2:
 			max_health = 400.0
+			xp_reward = 150
 		3:
 			max_health = 700.0
+			xp_reward = 200
 		4:
 			max_health = 1000.0
+			xp_reward = 300
 			is_last_boss = true
 		_:
 			max_health = base_health * boss_number
+			xp_reward = 100 * boss_number
 
 	# Damage scaling: +30% por boss
 	damage = base_damage * (1.0 + (boss_number - 1) * damage_scaling)

@@ -16,6 +16,7 @@ signal attack_performed()
 @export var damage: float = 10.0
 @export var attack_range: float = 2.0
 @export var attack_cooldown: float = 1.5
+@export var xp_reward: int = 10  # XP dropado ao morrer
 
 # Estado
 var current_health: float = 50.0
@@ -158,6 +159,9 @@ func die() -> void:
 
 	_is_alive = false
 	current_health = 0.0
+
+	# Dropa XP orbs
+	_drop_xp()
 
 	died.emit()
 
@@ -334,3 +338,36 @@ func _play_animation(anim_name: String) -> void:
 	"""Toca uma animação se existir"""
 	if animation_player and animation_player.has_animation(anim_name):
 		animation_player.play(anim_name)
+
+
+func _drop_xp() -> void:
+	"""Spawna orbs de XP ao morrer"""
+	if xp_reward <= 0:
+		return
+	
+	# Carrega cena do orb
+	if not ResourceLoader.exists("res://items/xp_orb.tscn"):
+		# Fallback: adiciona XP diretamente
+		if XPManager:
+			XPManager.add_xp(xp_reward)
+		return
+	
+	var orb_scene = load("res://items/xp_orb.tscn")
+	
+	# Determina quantos orbs spawnar (1 orb por cada 10 XP, máx 5)
+	var orb_count = clamp(xp_reward / 10, 1, 5)
+	var xp_per_orb = xp_reward / orb_count
+	
+	for i in range(orb_count):
+		var orb = orb_scene.instantiate()
+		orb.xp_value = xp_per_orb
+		
+		# Posição com spread aleatório
+		var offset = Vector3(
+			randf_range(-0.8, 0.8),
+			0.5,
+			randf_range(-0.8, 0.8)
+		)
+		
+		get_tree().current_scene.add_child(orb)
+		orb.global_position = global_position + offset

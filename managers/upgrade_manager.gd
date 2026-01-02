@@ -292,6 +292,10 @@ func select_upgrade(upgrade_id: String) -> void:
 	# Atualiza visual da arma
 	_update_weapon_visual()
 
+	# Registra no XPManager para aparecer no level up
+	if XPManager:
+		XPManager.register_boss_upgrade(upgrade_id)
+
 	# Emite signals
 	upgrade_selected.emit(upgrade_id, new_level)
 	upgrade_applied.emit(upgrade_id, new_level)

@@ -350,6 +350,38 @@ func add_ammo(amount: int) -> void:
 	ammo_changed.emit(current_ammo, magazine_size)
 
 
+func instant_reload() -> void:
+	"""Reload instantâneo (chamado pelo dash)"""
+	if is_reloading:
+		return
+
+	if current_ammo >= magazine_size:
+		return
+
+	# Cancela reload em progresso
+	is_reloading = false
+
+	# Reload instantâneo
+	current_ammo = magazine_size
+	can_shoot = true
+
+	ammo_changed.emit(current_ammo, magazine_size)
+
+	# Feedback visual de reload rápido
+	_play_quick_reload_effect()
+
+
+func _play_quick_reload_effect() -> void:
+	"""Efeito visual de reload instantâneo durante dash"""
+	if not weapon_recoil:
+		return
+
+	# Pequeno kick visual
+	var tween = create_tween()
+	tween.tween_property(self, "rotation:x", rotation.x - 0.15, 0.08).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, "rotation:x", rotation.x, 0.12).set_ease(Tween.EASE_IN_OUT)
+
+
 func _trigger_muzzle_flash() -> void:
 	"""Ativa o muzzle flash"""
 	if muzzle_flash:

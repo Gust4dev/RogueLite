@@ -22,6 +22,7 @@ class_name PlayerController
 
 # Sub-sistemas
 var aim_assist: AimAssist = null
+var dash_system: DashSystem = null
 
 # Weapon slot
 var current_weapon: BaseWeapon = null
@@ -32,6 +33,7 @@ var camera_rotation: float = 0.0
 # Estado de movimento
 var is_moving: bool = false
 var is_sprinting: bool = false
+var is_dashing: bool = false
 var was_on_floor: bool = true
 var initialization_frames: int = 0
 
@@ -56,6 +58,9 @@ func _ready() -> void:
 	# Configura aim assist
 	_setup_aim_assist()
 
+	# Configura dash system
+	_setup_dash_system()
+
 	# Conecta signals de stats
 	if stats:
 		stats.health_changed.connect(_on_health_changed)
@@ -75,6 +80,18 @@ func _setup_aim_assist() -> void:
 	aim_assist.slowdown_factor = 0.8          # Slowdown sutil
 	aim_assist.detection_radius = 80.0        # Raio moderado
 	aim_assist.max_correction_angle = 2.0     # Correção mínima
+
+
+func _setup_dash_system() -> void:
+	"""Configura o sistema de dash"""
+	dash_system = DashSystem.new()
+	dash_system.name = "DashSystem"
+	add_child(dash_system)
+	dash_system.setup(self, camera_effects)
+
+	# Conecta signals do dash
+	dash_system.dash_started.connect(_on_dash_started)
+	dash_system.dash_ended.connect(_on_dash_ended)
 
 
 func _input(event: InputEvent) -> void:
@@ -161,6 +178,9 @@ func _physics_process(delta: float) -> void:
 	# Processar weapon input
 	_process_weapon_input()
 
+	# Processar dash input
+	_process_dash_input()
+
 
 func _check_landing(prev_on_floor: bool) -> void:
 	"""Verifica e processa aterrisagem"""
@@ -190,6 +210,10 @@ func _process_weapon_input() -> void:
 	if not current_weapon:
 		return
 
+	# Não pode atirar durante dash
+	if is_dashing:
+		return
+
 	# Shoot
 	if Input.is_action_pressed("shoot"):
 		if current_weapon.has_method("shoot"):
@@ -199,6 +223,45 @@ func _process_weapon_input() -> void:
 	if Input.is_action_just_pressed("reload"):
 		if current_weapon.has_method("reload"):
 			current_weapon.reload()
+
+
+func _process_dash_input() -> void:
+	"""Processa input de dash (Ctrl)"""
+	if not dash_system:
+		return
+
+	# Ctrl para dash
+	if Input.is_action_just_pressed("dash"):
+		_perform_dash()
+
+
+func _perform_dash() -> void:
+	"""Executa o dash na direção do movimento"""
+	if not dash_system or not dash_system.can_dash():
+		return
+
+	# Calcula direção do dash baseada no input
+	var input_dir = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var direction: Vector3
+
+	if input_dir.length() > 0.1:
+		# Dash na direção do movimento
+		direction = (transform.basis * Vector3(input_dir.x, 0, input_dir.y)).normalized()
+	else:
+		# Dash para frente se não tiver input
+		direction = -transform.basis.z
+
+	dash_system.execute_dash(direction)
+
+
+func _on_dash_started(_direction: Vector3) -> void:
+	"""Callback quando dash inicia"""
+	is_dashing = true
+
+
+func _on_dash_ended() -> void:
+	"""Callback quando dash termina"""
+	is_dashing = false
 
 
 func equip_weapon(weapon: Node3D) -> void:
@@ -224,6 +287,10 @@ func equip_weapon(weapon: Node3D) -> void:
 
 func take_damage(amount: float) -> void:
 	"""Aplica dano ao jogador"""
+	# Invulnerável durante dash
+	if dash_system and dash_system.is_player_invulnerable():
+		return
+
 	if stats:
 		stats.take_damage(amount)
 
