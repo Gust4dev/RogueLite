@@ -4,6 +4,14 @@ extends BaseUpgrade
 # Lvl 1: 3 tiros, spread pequeno
 # Lvl 2: 4 tiros, spread reduzido
 # Lvl 3: 5 tiros, zero spread
+#
+# === WEAPON INTERACTIONS ===
+# Pistol: Normal behavior
+# Revolver: Recoil MUITO alto até nível máximo (então quase zero)
+# SMG: Disabled (já é full auto)
+# Shotgun: Adiciona pellets extras ao invés de tiros extras
+# Sniper: Delay maior entre bursts
+# LMG: Disabled (já é full auto)
 
 var burst_count: int = 3
 var burst_spread: float = 0.05  # Radianos
@@ -11,14 +19,25 @@ var burst_delay: float = 0.05  # Segundos entre tiros do burst
 
 var is_bursting: bool = false
 
+# Multiplicadores por arma
+var weapon_type: String = ""
+var revolver_recoil_multiplier: float = 3.0  # Recoil 3x para revolver
+var sniper_burst_delay: float = 0.15  # Delay maior para sniper
+
 
 func _ready() -> void:
 	upgrade_id = "burst_fire"
 	upgrade_name = "Burst Fire"
 
 
+func _apply_effects() -> void:
+	"""Detecta tipo de arma quando upgrade é aplicado"""
+	if weapon and weapon.has_method("get_weapon_type"):
+		weapon_type = weapon.get_weapon_type()
+
+
 func _on_level_changed() -> void:
-	"""Atualiza stats baseado no nível"""
+	"""Atualiza stats baseado no nível e tipo de arma"""
 	match level:
 		1:
 			burst_count = 3
@@ -29,6 +48,15 @@ func _on_level_changed() -> void:
 		3:
 			burst_count = 5
 			burst_spread = 0.0
+
+	# Ajusta para revolver: recoil diminui com nível
+	if weapon_type == "revolver":
+		if level >= 3:
+			revolver_recoil_multiplier = 0.1  # Praticamente zero no max
+		elif level == 2:
+			revolver_recoil_multiplier = 2.0
+		else:
+			revolver_recoil_multiplier = 3.0
 
 
 func _connect_signals() -> void:
@@ -45,8 +73,32 @@ func _on_weapon_fired() -> void:
 	if is_bursting:
 		return
 
+	# Verifica tipo de arma para comportamento especial
+	if weapon_type == "smg" or weapon_type == "lmg":
+		# SMG e LMG já são full auto, burst não faz sentido
+		return
+
+	if weapon_type == "shotgun":
+		# Shotgun: adiciona pellets extras ao próximo tiro
+		_add_shotgun_pellets()
+		return
+
 	# Dispara tiros adicionais (o primeiro já foi disparado pela arma)
 	_fire_burst()
+
+
+func _add_shotgun_pellets() -> void:
+	"""Para shotgun: aumenta pellets temporariamente"""
+	if not weapon or not weapon.has_method("get_pellet_count"):
+		return
+
+	# Aumenta pellets baseado no nível
+	var extra_pellets = level + 1  # 2, 3, 4 pellets extras
+	weapon.pellet_count += extra_pellets
+
+	# Reseta após um frame
+	await get_tree().process_frame
+	weapon.pellet_count -= extra_pellets
 
 
 func _fire_burst() -> void:
@@ -56,8 +108,13 @@ func _fire_burst() -> void:
 	# Já disparou 1 tiro, dispara os restantes
 	var extra_shots = burst_count - 1
 
+	# Delay ajustado por arma
+	var delay = burst_delay
+	if weapon_type == "sniper":
+		delay = sniper_burst_delay  # Sniper tem delay maior
+
 	for i in range(extra_shots):
-		await get_tree().create_timer(burst_delay).timeout
+		await get_tree().create_timer(delay).timeout
 
 		if not is_instance_valid(weapon):
 			break
@@ -120,9 +177,17 @@ func _fire_extra_shot() -> void:
 	if weapon.has_signal("ammo_changed"):
 		weapon.ammo_changed.emit(weapon.current_ammo, weapon.magazine_size)
 
-	# Efeitos visuais mínimos (sem muzzle flash para não sobrecarregar)
+	# Efeitos visuais com recoil ajustado por arma
 	if weapon.has_method("_apply_weapon_recoil"):
-		weapon._apply_weapon_recoil()
+		# Revolver: aplica recoil multiplicado (ou reduzido no max level)
+		if weapon_type == "revolver" and weapon.has_node("WeaponRecoil"):
+			var recoil = weapon.get_node("WeaponRecoil")
+			var original_kick_rot = recoil.kickback_rotation
+			recoil.kickback_rotation = original_kick_rot * revolver_recoil_multiplier
+			weapon._apply_weapon_recoil()
+			recoil.kickback_rotation = original_kick_rot
+		else:
+			weapon._apply_weapon_recoil()
 
 
 func get_description_for_level(lvl: int) -> String:

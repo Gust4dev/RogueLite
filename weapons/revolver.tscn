@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://crevolverweapon"]
+
+[ext_resource type="Script" uid="uid://crevolver_script" path="res://weapons/revolver.gd" id="1_revolver"]
+[ext_resource type="PackedScene" uid="uid://ccj3yt7xqw8kv" path="res://vfx/muzzle_flash.tscn" id="2_muzzle"]
+
+[node name="Revolver" type="Node3D"]
+script = ExtResource("1_revolver")
+
+[node name="RevolverMesh" type="Node3D" parent="."]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -5.0, 0.1)
+
+[node name="RayCast3D" type="RayCast3D" parent="."]
+target_position = Vector3(0, 0, -100)
+collision_mask = 6
+collide_with_areas = true
+
+[node name="MuzzleFlash" parent="." instance=ExtResource("2_muzzle")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, -0.2, -0.9)

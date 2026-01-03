@@ -4,14 +4,62 @@ extends BaseUpgrade
 # Lvl 1: 1 ricochet
 # Lvl 2: 2 ricochets
 # Lvl 3: 3 ricochets + busca inimigos próximos
+#
+# === WEAPON INTERACTIONS ===
+# Pistol: Normal behavior
+# Revolver: Ricochets mais poderosos (menos decay)
+# SMG: Menos ricochets por tiro (já são muitos)
+# Shotgun: CADA pellet ricocheta! (loucura)
+# Sniper: Ricochets atravessam (piercing + ricochet)
+# LMG: Normal
 
 var ricochet_range: float = 20.0
 var seek_range: float = 8.0  # Range para buscar inimigos no nível 3
+
+# Weapon type
+var weapon_type: String = ""
+
+# Modificadores por arma
+var ricochet_multiplier: int = 1  # Multiplicador de ricochets
+var damage_retention: float = 0.7  # % de dano mantido por ricochet
 
 
 func _ready() -> void:
 	upgrade_id = "ricochet"
 	upgrade_name = "Ricochet"
+
+
+func _apply_effects() -> void:
+	"""Detecta tipo de arma e ajusta comportamento"""
+	if weapon and weapon.has_method("get_weapon_type"):
+		weapon_type = weapon.get_weapon_type()
+		_update_weapon_modifiers()
+
+
+func _update_weapon_modifiers() -> void:
+	"""Define modificadores baseados na arma"""
+	match weapon_type:
+		"pistol":
+			ricochet_multiplier = 1
+			damage_retention = 0.7
+		"revolver":
+			ricochet_multiplier = 1
+			damage_retention = 0.85  # Mantém mais dano
+		"smg":
+			ricochet_multiplier = 1
+			damage_retention = 0.5  # Menos dano (muitos tiros)
+		"shotgun":
+			ricochet_multiplier = 1  # Já é OP pq cada pellet ricocheta
+			damage_retention = 0.6
+		"sniper":
+			ricochet_multiplier = 1
+			damage_retention = 0.9  # Mantém quase todo dano
+		"lmg":
+			ricochet_multiplier = 1
+			damage_retention = 0.5
+		_:
+			ricochet_multiplier = 1
+			damage_retention = 0.7
 
 
 func _connect_signals() -> void:
@@ -39,8 +87,8 @@ func _on_weapon_fired() -> void:
 	var hit_normal = raycast.get_collision_normal()
 	var collider = raycast.get_collider()
 
-	# Número de ricochets baseado no nível
-	var max_ricochets = level
+	# Número de ricochets baseado no nível e multiplicador
+	var max_ricochets = level * ricochet_multiplier
 
 	# Inicia cadeia de ricochets
 	_process_ricochet(hit_point, raycast.global_transform.basis.z * -1, hit_normal, max_ricochets, [collider])
@@ -83,7 +131,7 @@ func _process_ricochet(origin: Vector3, direction: Vector3, normal: Vector3, ric
 	# Se acertou um inimigo
 	if hit_collider and hit_collider.has_method("take_damage"):
 		if hit_collider not in hit_list:
-			hit_collider.take_damage(weapon.damage * 0.7)  # 70% do dano original
+			hit_collider.take_damage(weapon.damage * damage_retention)  # Dano ajustado por arma
 			hit_list.append(hit_collider)
 
 	# Continua ricocheteando

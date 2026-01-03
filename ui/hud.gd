@@ -50,6 +50,13 @@ var dash_indicators: Array[ProgressBar] = []
 # === LEVEL UP SCREEN ===
 var level_up_screen: LevelUpScreen = null
 
+# === WEAPON SPECIFIC UI ===
+var weapon_info_container: VBoxContainer = null
+var heat_bar: ProgressBar = null
+var heat_label: Label = null
+var spread_indicator: ProgressBar = null
+var spin_indicator: ProgressBar = null
+
 # Estado do boss
 var boss_active: bool = false
 
@@ -91,6 +98,9 @@ func _ready() -> void:
 
 	# Configura Level Up Screen
 	_setup_level_up_screen()
+
+	# Configura Weapon Info UI (para LMG, SMG, etc.)
+	_setup_weapon_info_ui()
 
 	# Conecta signals do XPManager
 	if XPManager:
@@ -260,6 +270,131 @@ func _setup_level_up_screen() -> void:
 	get_tree().root.add_child.call_deferred(level_up_screen)
 
 
+func _setup_weapon_info_ui() -> void:
+	"""Configura UI para informações específicas de armas"""
+	# Container principal para info de arma
+	weapon_info_container = VBoxContainer.new()
+	weapon_info_container.name = "WeaponInfoContainer"
+	weapon_info_container.anchor_left = 0.85
+	weapon_info_container.anchor_right = 0.98
+	weapon_info_container.anchor_top = 0.75
+	weapon_info_container.anchor_bottom = 0.88
+	weapon_info_container.add_theme_constant_override("separation", 5)
+	weapon_info_container.visible = false  # Escondido por padrão
+	$Control.add_child(weapon_info_container)
+
+	# Heat Bar (para LMG)
+	var heat_container = HBoxContainer.new()
+	heat_container.name = "HeatContainer"
+	weapon_info_container.add_child(heat_container)
+
+	heat_label = Label.new()
+	heat_label.text = "HEAT"
+	heat_label.add_theme_font_size_override("font_size", 12)
+	heat_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.2))
+	heat_label.custom_minimum_size = Vector2(50, 0)
+	heat_container.add_child(heat_label)
+
+	heat_bar = ProgressBar.new()
+	heat_bar.name = "HeatBar"
+	heat_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heat_bar.max_value = 100
+	heat_bar.value = 0
+	heat_bar.show_percentage = false
+	heat_bar.custom_minimum_size = Vector2(0, 12)
+
+	var heat_bg = StyleBoxFlat.new()
+	heat_bg.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	heat_bg.corner_radius_top_left = 3
+	heat_bg.corner_radius_top_right = 3
+	heat_bg.corner_radius_bottom_left = 3
+	heat_bg.corner_radius_bottom_right = 3
+	heat_bar.add_theme_stylebox_override("background", heat_bg)
+
+	var heat_fill = StyleBoxFlat.new()
+	heat_fill.bg_color = Color(1.0, 0.3, 0.1, 0.9)
+	heat_fill.corner_radius_top_left = 3
+	heat_fill.corner_radius_top_right = 3
+	heat_fill.corner_radius_bottom_left = 3
+	heat_fill.corner_radius_bottom_right = 3
+	heat_bar.add_theme_stylebox_override("fill", heat_fill)
+	heat_container.add_child(heat_bar)
+
+	# Spin Indicator (para LMG)
+	var spin_container = HBoxContainer.new()
+	spin_container.name = "SpinContainer"
+	weapon_info_container.add_child(spin_container)
+
+	var spin_label = Label.new()
+	spin_label.text = "SPIN"
+	spin_label.add_theme_font_size_override("font_size", 12)
+	spin_label.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
+	spin_label.custom_minimum_size = Vector2(50, 0)
+	spin_container.add_child(spin_label)
+
+	spin_indicator = ProgressBar.new()
+	spin_indicator.name = "SpinIndicator"
+	spin_indicator.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spin_indicator.max_value = 100
+	spin_indicator.value = 0
+	spin_indicator.show_percentage = false
+	spin_indicator.custom_minimum_size = Vector2(0, 12)
+
+	var spin_bg = StyleBoxFlat.new()
+	spin_bg.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	spin_bg.corner_radius_top_left = 3
+	spin_bg.corner_radius_top_right = 3
+	spin_bg.corner_radius_bottom_left = 3
+	spin_bg.corner_radius_bottom_right = 3
+	spin_indicator.add_theme_stylebox_override("background", spin_bg)
+
+	var spin_fill = StyleBoxFlat.new()
+	spin_fill.bg_color = Color(0.3, 0.7, 1.0, 0.9)
+	spin_fill.corner_radius_top_left = 3
+	spin_fill.corner_radius_top_right = 3
+	spin_fill.corner_radius_bottom_left = 3
+	spin_fill.corner_radius_bottom_right = 3
+	spin_indicator.add_theme_stylebox_override("fill", spin_fill)
+	spin_container.add_child(spin_indicator)
+
+	# Spread Indicator (para SMG)
+	var spread_container = HBoxContainer.new()
+	spread_container.name = "SpreadContainer"
+	weapon_info_container.add_child(spread_container)
+
+	var spread_label = Label.new()
+	spread_label.text = "SPREAD"
+	spread_label.add_theme_font_size_override("font_size", 12)
+	spread_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.3))
+	spread_label.custom_minimum_size = Vector2(50, 0)
+	spread_container.add_child(spread_label)
+
+	spread_indicator = ProgressBar.new()
+	spread_indicator.name = "SpreadIndicator"
+	spread_indicator.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spread_indicator.max_value = 100
+	spread_indicator.value = 0
+	spread_indicator.show_percentage = false
+	spread_indicator.custom_minimum_size = Vector2(0, 12)
+
+	var spread_bg = StyleBoxFlat.new()
+	spread_bg.bg_color = Color(0.2, 0.2, 0.2, 0.8)
+	spread_bg.corner_radius_top_left = 3
+	spread_bg.corner_radius_top_right = 3
+	spread_bg.corner_radius_bottom_left = 3
+	spread_bg.corner_radius_bottom_right = 3
+	spread_indicator.add_theme_stylebox_override("background", spread_bg)
+
+	var spread_fill = StyleBoxFlat.new()
+	spread_fill.bg_color = Color(0.8, 0.8, 0.3, 0.9)
+	spread_fill.corner_radius_top_left = 3
+	spread_fill.corner_radius_top_right = 3
+	spread_fill.corner_radius_bottom_left = 3
+	spread_fill.corner_radius_bottom_right = 3
+	spread_indicator.add_theme_stylebox_override("fill", spread_fill)
+	spread_container.add_child(spread_indicator)
+
+
 func _process(_delta: float) -> void:
 	# Atualiza crosshair com dados do camera_effects
 	if crosshair_drawer and camera_effects:
@@ -280,6 +415,9 @@ func _process(_delta: float) -> void:
 
 	# Atualiza dash indicators
 	_update_dash_indicators()
+
+	# Atualiza weapon-specific info
+	_update_weapon_info()
 
 
 func _find_player() -> void:
@@ -565,6 +703,83 @@ func _on_level_up(new_level: int) -> void:
 	# Mostra tela de level up
 	if level_up_screen:
 		level_up_screen.show_level_up_options()
+
+
+# === WEAPON SPECIFIC INFO ===
+
+func _update_weapon_info() -> void:
+	"""Atualiza UI de informações específicas de arma"""
+	if not current_weapon or not weapon_info_container:
+		return
+
+	# Detecta tipo de arma
+	var weapon_type = ""
+	if current_weapon.has_method("get_weapon_type"):
+		weapon_type = current_weapon.get_weapon_type()
+
+	# LMG: mostra heat e spin
+	if weapon_type == "lmg":
+		weapon_info_container.visible = true
+
+		# Heat
+		if heat_bar and current_weapon.has_method("get_heat_percentage"):
+			heat_bar.value = current_weapon.get_heat_percentage() * 100
+			heat_bar.get_parent().visible = true
+
+			# Muda cor quando overheat
+			var is_overheated = current_weapon.get("is_overheated")
+			if is_overheated:
+				heat_label.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2))
+			else:
+				heat_label.add_theme_color_override("font_color", Color(1.0, 0.5, 0.2))
+
+		# Spin
+		if spin_indicator and current_weapon.has_method("get_spin_percentage"):
+			spin_indicator.value = current_weapon.get_spin_percentage() * 100
+			spin_indicator.get_parent().visible = true
+
+		# Esconde spread
+		if spread_indicator:
+			spread_indicator.get_parent().visible = false
+
+	# SMG: mostra spread
+	elif weapon_type == "smg":
+		weapon_info_container.visible = true
+
+		# Spread
+		if spread_indicator and current_weapon.has_method("get_spread_percentage"):
+			spread_indicator.value = current_weapon.get_spread_percentage() * 100
+			spread_indicator.get_parent().visible = true
+
+		# Esconde heat e spin
+		if heat_bar:
+			heat_bar.get_parent().visible = false
+		if spin_indicator:
+			spin_indicator.get_parent().visible = false
+
+	else:
+		# Outras armas: esconde tudo
+		weapon_info_container.visible = false
+
+
+func _configure_weapon_ui(weapon_type: String) -> void:
+	"""Configura visibilidade da UI baseada no tipo de arma"""
+	if not weapon_info_container:
+		return
+
+	match weapon_type:
+		"lmg":
+			weapon_info_container.visible = true
+			heat_bar.get_parent().visible = true
+			spin_indicator.get_parent().visible = true
+			spread_indicator.get_parent().visible = false
+		"smg":
+			weapon_info_container.visible = true
+			heat_bar.get_parent().visible = false
+			spin_indicator.get_parent().visible = false
+			spread_indicator.get_parent().visible = true
+		_:
+			weapon_info_container.visible = false
 
 
 # === CLASSES INTERNAS PARA DESENHO ===

@@ -37,6 +37,13 @@ var is_dashing: bool = false
 var was_on_floor: bool = true
 var initialization_frames: int = 0
 
+# Modificadores de velocidade (para LMG, etc.)
+var speed_multiplier: float = 1.0
+
+# Estado de arma especial
+var is_scoped: bool = false  # Para sniper
+var is_holding_trigger: bool = false  # Para full auto (SMG/LMG)
+
 
 func _ready() -> void:
 	# Captura o mouse
@@ -103,11 +110,18 @@ func _input(event: InputEvent) -> void:
 		if aim_assist:
 			mouse_input = aim_assist.apply_to_mouse_input(mouse_input)
 
+		# Modificador de sensibilidade (para sniper scope)
+		var sens_multiplier = 1.0
+		if current_weapon and current_weapon.has_method("get_sensitivity_multiplier"):
+			sens_multiplier = current_weapon.get_sensitivity_multiplier()
+
+		var effective_sensitivity = mouse_sensitivity * sens_multiplier
+
 		# Rotação horizontal (yaw)
-		rotate_y(-mouse_input.x * mouse_sensitivity)
+		rotate_y(-mouse_input.x * effective_sensitivity)
 
 		# Rotação vertical (pitch)
-		camera_rotation -= mouse_input.y * mouse_sensitivity
+		camera_rotation -= mouse_input.y * effective_sensitivity
 		camera_rotation = clamp(camera_rotation, -PI/2, PI/2)
 
 		if camera:
@@ -154,7 +168,8 @@ func _physics_process(delta: float) -> void:
 
 	# Sprint
 	is_sprinting = Input.is_action_pressed("sprint") and direction.length() > 0
-	var current_speed = sprint_speed if is_sprinting else walk_speed
+	var base_speed = sprint_speed if is_sprinting else walk_speed
+	var current_speed = base_speed * speed_multiplier  # Aplica modificador (LMG, etc.)
 
 	# Atualiza estado de movimento
 	is_moving = direction.length() > 0.1
@@ -214,10 +229,37 @@ func _process_weapon_input() -> void:
 	if is_dashing:
 		return
 
-	# Shoot
-	if Input.is_action_pressed("shoot"):
-		if current_weapon.has_method("shoot"):
+	# === SCOPE (Right Click) ===
+	if Input.is_action_just_pressed("aim"):
+		if current_weapon.has_method("toggle_scope"):
+			current_weapon.toggle_scope()
+			is_scoped = current_weapon.is_using_scope() if current_weapon.has_method("is_using_scope") else false
+
+	# === SHOOT ===
+	# Verifica se é arma que precisa de spinup (LMG)
+	var is_lmg = current_weapon.has_method("start_firing")
+
+	if is_lmg:
+		# LMG: Start/Stop firing
+		if Input.is_action_just_pressed("shoot"):
+			current_weapon.start_firing()
+			is_holding_trigger = true
+
+		if Input.is_action_just_released("shoot"):
+			current_weapon.stop_firing()
+			is_holding_trigger = false
+
+		# LMG dispara continuamente quando ready
+		if is_holding_trigger and current_weapon.has_method("is_ready_to_fire"):
+			if current_weapon.is_ready_to_fire():
+				current_weapon.shoot()
+		elif is_holding_trigger and current_weapon.has_method("shoot"):
 			current_weapon.shoot()
+	else:
+		# Armas normais
+		if Input.is_action_pressed("shoot"):
+			if current_weapon.has_method("shoot"):
+				current_weapon.shoot()
 
 	# Reload
 	if Input.is_action_just_pressed("reload"):
@@ -323,3 +365,25 @@ func set_aim_assist_enabled(enabled: bool) -> void:
 	"""Ativa/desativa aim assist"""
 	if aim_assist:
 		aim_assist.set_enabled(enabled)
+
+
+# === MÉTODOS PARA ARMAS ESPECIAIS ===
+
+func set_speed_multiplier(multiplier: float) -> void:
+	"""Define multiplicador de velocidade (usado por LMG, etc.)"""
+	speed_multiplier = clamp(multiplier, 0.1, 2.0)
+
+
+func reset_speed_multiplier() -> void:
+	"""Reseta multiplicador de velocidade para 1.0"""
+	speed_multiplier = 1.0
+
+
+func get_speed_multiplier() -> float:
+	"""Retorna multiplicador atual"""
+	return speed_multiplier
+
+
+func is_player_scoped() -> bool:
+	"""Retorna se jogador está usando scope"""
+	return is_scoped
