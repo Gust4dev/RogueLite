@@ -2,15 +2,20 @@ extends BaseWeapon
 
 # Pistol - Arma inicial do jogador
 # Semi-automática, dano médio, recoil controlável
+# Stats finais: 15 dmg, 0.25s fire rate, 12 mag = 60 DPS
 
 class_name Pistol
+
+# Tipo de arma para upgrade interactions
+var weapon_type: String = "pistol"
 
 
 func _ready() -> void:
 	# === STATS BÁSICOS ===
-	damage = 20.0
-	fire_rate = 0.15
-	reload_time = 1.0
+	# 15 dmg / 0.25s = 60 DPS (target)
+	damage = 15.0
+	fire_rate = 0.25
+	reload_time = 1.2
 	magazine_size = 12
 
 	# === RECOIL DA ARMA (kickback visual) ===
@@ -58,3 +63,10 @@ func _play_initial_sequence() -> void:
 	# Vai para Idle
 	if animation_player.has_animation(anim_idle):
 		animation_player.play(anim_idle)
+
+
+# === PISTOL SPECIFIC METHODS ===
+
+func get_weapon_type() -> String:
+	"""Retorna o tipo de arma para upgrade interactions"""
+	return weapon_type

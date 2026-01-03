@@ -4,15 +4,71 @@ extends BaseUpgrade
 # Lvl 1: 1 chain (2 inimigos)
 # Lvl 2: 2 chains (3 inimigos)
 # Lvl 3: 3 chains + dano aumentado
+#
+# === WEAPON INTERACTIONS ===
+# Pistol: Single target → 3 chains max (normal)
+# Revolver: Chains poderosos (mais dano, menos decay)
+# SMG: Cada bala pode chain (visual chaos!) - reduz max_chains
+# Shotgun: Cada pellet pode chain independentemente (OP)
+# Sniper: Single shot, chains muito poderosos
+# LMG: Chain constantemente (screen filled!) - reduz range
 
 var chain_range: float = 10.0
 var damage_decay: float = 0.8  # Cada chain faz 80% do dano anterior
 var chain_visual_duration: float = 0.1
 
+# Weapon type
+var weapon_type: String = ""
+
+# Multiplicadores por arma
+var chain_multiplier: int = 1  # Multiplicador de chains
+var decay_multiplier: float = 1.0  # Multiplica o decay
+var range_multiplier: float = 1.0  # Multiplica o range
+
 
 func _ready() -> void:
 	upgrade_id = "chain_lightning"
 	upgrade_name = "Chain Lightning"
+
+
+func _apply_effects() -> void:
+	"""Detecta tipo de arma e ajusta comportamento"""
+	if weapon and weapon.has_method("get_weapon_type"):
+		weapon_type = weapon.get_weapon_type()
+		_update_weapon_modifiers()
+
+
+func _update_weapon_modifiers() -> void:
+	"""Define modificadores baseados na arma"""
+	match weapon_type:
+		"pistol":
+			chain_multiplier = 1
+			decay_multiplier = 1.0
+			range_multiplier = 1.0
+		"revolver":
+			chain_multiplier = 1
+			decay_multiplier = 0.7  # Menos decay (mais dano por chain)
+			range_multiplier = 1.2  # Maior range
+		"smg":
+			chain_multiplier = 1
+			decay_multiplier = 1.2  # Mais decay (para não ser OP)
+			range_multiplier = 0.8  # Menor range
+		"shotgun":
+			chain_multiplier = 1
+			decay_multiplier = 1.0
+			range_multiplier = 0.7  # Menor range (já é OP por pellet)
+		"sniper":
+			chain_multiplier = 2  # Dobro de chains
+			decay_multiplier = 0.5  # Muito menos decay
+			range_multiplier = 1.5  # Range maior
+		"lmg":
+			chain_multiplier = 1
+			decay_multiplier = 1.3  # Mais decay
+			range_multiplier = 0.6  # Bem menor range
+		_:
+			chain_multiplier = 1
+			decay_multiplier = 1.0
+			range_multiplier = 1.0
 
 
 func _connect_signals() -> void:
@@ -26,8 +82,8 @@ func _on_hit_enemy(enemy: Node3D, damage: float, is_kill: bool) -> void:
 	if level <= 0:
 		return
 
-	# Número de chains baseado no nível
-	var max_chains = level
+	# Número de chains baseado no nível e multiplicador de arma
+	var max_chains = level * chain_multiplier
 
 	# Dano base (aumentado no nível 3)
 	var chain_damage = damage
@@ -46,16 +102,18 @@ func _chain_to_enemies(from_enemy: Node3D, base_damage: float, chains_left: int,
 	if not is_instance_valid(from_enemy):
 		return
 
-	# Encontra próximo inimigo mais próximo
-	var next_enemy = _find_nearest_enemy(from_enemy.global_position, hit_list)
+	# Encontra próximo inimigo mais próximo (com range modificado por arma)
+	var effective_range = chain_range * range_multiplier
+	var next_enemy = _find_nearest_enemy(from_enemy.global_position, hit_list, effective_range)
 
 	if not next_enemy:
 		return
 
-	# Calcula dano com decay
-	var chain_damage = base_damage * damage_decay
+	# Calcula dano com decay (modificado por arma)
+	var effective_decay = damage_decay * decay_multiplier
+	var chain_damage = base_damage * effective_decay
 
-	# Cria efeito visual de raio
+	# Cria efeito visual de raio (cor varia por arma)
 	_create_chain_effect(from_enemy.global_position, next_enemy.global_position)
 
 	# Aplica dano
@@ -65,16 +123,18 @@ func _chain_to_enemies(from_enemy: Node3D, base_damage: float, chains_left: int,
 	# Adiciona à lista de atingidos
 	hit_list.append(next_enemy)
 
-	# Continua chain
-	await get_tree().create_timer(0.05).timeout
+	# Continua chain (delay varia por arma)
+	var chain_delay = 0.05 if weapon_type != "smg" and weapon_type != "lmg" else 0.02
+	await get_tree().create_timer(chain_delay).timeout
 	_chain_to_enemies(next_enemy, chain_damage, chains_left - 1, hit_list)
 
 
-func _find_nearest_enemy(from_pos: Vector3, exclude: Array) -> Node3D:
+func _find_nearest_enemy(from_pos: Vector3, exclude: Array, max_range: float = -1.0) -> Node3D:
 	"""Encontra o inimigo mais próximo não na lista de exclusão"""
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	var nearest: Node3D = null
-	var nearest_dist = chain_range
+	var search_range = max_range if max_range > 0 else chain_range
+	var nearest_dist = search_range
 
 	for enemy in enemies:
 		if enemy in exclude:
@@ -101,11 +161,14 @@ func _create_chain_effect(from: Vector3, to: Vector3) -> void:
 	var mesh_instance = MeshInstance3D.new()
 	mesh_instance.mesh = line
 
+	# Cor varia por arma
+	var chain_color = _get_chain_color()
+
 	# Material do raio
 	var material = StandardMaterial3D.new()
-	material.albedo_color = Color(0.3, 0.6, 1.0)
+	material.albedo_color = chain_color
 	material.emission_enabled = true
-	material.emission = Color(0.3, 0.6, 1.0)
+	material.emission = chain_color
 	material.emission_energy_multiplier = 3.0
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
@@ -125,6 +188,21 @@ func _create_chain_effect(from: Vector3, to: Vector3) -> void:
 	await get_tree().create_timer(chain_visual_duration).timeout
 	if is_instance_valid(mesh_instance):
 		mesh_instance.queue_free()
+
+
+func _get_chain_color() -> Color:
+	"""Retorna cor do raio baseada na arma"""
+	match weapon_type:
+		"sniper":
+			return Color(0.8, 0.2, 1.0)  # Roxo (poderoso)
+		"shotgun":
+			return Color(1.0, 0.5, 0.2)  # Laranja
+		"revolver":
+			return Color(0.2, 0.8, 1.0)  # Cyan
+		"smg", "lmg":
+			return Color(0.5, 1.0, 0.5)  # Verde (caótico)
+		_:
+			return Color(0.3, 0.6, 1.0)  # Azul padrão
 
 
 func get_description_for_level(lvl: int) -> String:
