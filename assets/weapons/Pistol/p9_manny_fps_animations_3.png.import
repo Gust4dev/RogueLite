@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c7wn545l138sd"
-path.s3tc="res://.godot/imported/mark_23__animated_free_2.png-b7a3a91228d8e0511026cf40d67eb470.s3tc.ctex"
-path.etc2="res://.godot/imported/mark_23__animated_free_2.png-b7a3a91228d8e0511026cf40d67eb470.etc2.ctex"
+uid="uid://dkuun7e01pr5w"
+path.s3tc="res://.godot/imported/p9_manny_fps_animations_3.png-d62a348c2568dded56c83d149d29c55b.s3tc.ctex"
+path.etc2="res://.godot/imported/p9_manny_fps_animations_3.png-d62a348c2568dded56c83d149d29c55b.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "80411bef98ac65d8b0957b3f4290094f"
+"md5": "3c9b60ec50647192922f4c00917b8dce"
 }
 
 [deps]
 
-source_file="res://assets/weapons/Pistol/mark_23__animated_free_2.png"
-dest_files=["res://.godot/imported/mark_23__animated_free_2.png-b7a3a91228d8e0511026cf40d67eb470.s3tc.ctex", "res://.godot/imported/mark_23__animated_free_2.png-b7a3a91228d8e0511026cf40d67eb470.etc2.ctex"]
+source_file="res://assets/weapons/Pistol/p9_manny_fps_animations_3.png"
+dest_files=["res://.godot/imported/p9_manny_fps_animations_3.png-d62a348c2568dded56c83d149d29c55b.s3tc.ctex", "res://.godot/imported/p9_manny_fps_animations_3.png-d62a348c2568dded56c83d149d29c55b.etc2.ctex"]
 
 [params]
 

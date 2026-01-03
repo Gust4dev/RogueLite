@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://8n01dmotvkbq"
-path="res://.godot/imported/mark_23__animated_free.glb-874fb9a327acb07468d9d0c1c49e1477.scn"
+uid="uid://smn432enq5fv"
+path="res://.godot/imported/p9_manny_fps_animations.glb-7fa89be5e3dd327ee5f15837c094dc62.scn"
 
 [deps]
 
-source_file="res://assets/weapons/Pistol/mark_23__animated_free.glb"
-dest_files=["res://.godot/imported/mark_23__animated_free.glb-874fb9a327acb07468d9d0c1c49e1477.scn"]
+source_file="res://assets/weapons/Pistol/p9_manny_fps_animations.glb"
+dest_files=["res://.godot/imported/p9_manny_fps_animations.glb-7fa89be5e3dd327ee5f15837c094dc62.scn"]
 
 [params]
 

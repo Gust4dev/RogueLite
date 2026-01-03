@@ -112,10 +112,6 @@ func _ready() -> void:
 	# Buscar AnimationPlayer dentro do mesh (GLBs importados geralmente têm um)
 	if mesh:
 		animation_player = mesh.find_child("AnimationPlayer", true, false)
-		if animation_player:
-			print("[Weapon] AnimationPlayer encontrado: ", animation_player.get_animation_list())
-		else:
-			print("[Weapon] AnimationPlayer NÃO encontrado no mesh")
 
 	# Configura raycast
 	if raycast:

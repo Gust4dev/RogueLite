@@ -15,10 +15,10 @@ func _ready() -> void:
 	if GameManager:
 		GameManager.start_timer()
 
-	# Instanciar e equipar a arma
-	var pistol = pistol_scene.instantiate()
-	if player:
-		player.equip_weapon(pistol)
+	# Usar a arma que já está na cena do player (não instanciar)
+	var pistol = player.get_node_or_null("Camera3D/Pistol")
+	if pistol and player:
+		player.current_weapon = pistol
 		if hud:
 			hud.set_weapon(pistol)
 		# Registra arma no UpgradeManager

@@ -1,13 +1,14 @@
-[gd_scene load_steps=5 format=3 uid="uid://dpw3yt8xqw7kx"]
+[gd_scene load_steps=4 format=3 uid="uid://dpw3yt8xqw7kx"]
 
-[ext_resource type="Script" path="res://weapons/pistol.gd" id="1_pistol"]
+[ext_resource type="Script" uid="uid://b1msmlk2apca1" path="res://weapons/pistol.gd" id="1_pistol"]
 [ext_resource type="PackedScene" uid="uid://ccj3yt7xqw8kv" path="res://vfx/muzzle_flash.tscn" id="2_muzzle"]
-[ext_resource type="PackedScene" path="res://assets/weapons/Pistol/mark_23__animated_free.glb" id="3_pistol_mesh"]
+[ext_resource type="PackedScene" path="res://assets/weapons/Pistol/p9_manny_fps_animations.glb" id="3_pistol_mesh"]
 
 [node name="Pistol" type="Node3D"]
 script = ExtResource("1_pistol")
 
 [node name="PistolMesh" parent="." instance=ExtResource("3_pistol_mesh")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.014167428, -5.0516505, 0.11693382)
 
 [node name="RayCast3D" type="RayCast3D" parent="."]
 target_position = Vector3(0, 0, -100)
@@ -15,4 +16,4 @@ collision_mask = 6
 collide_with_areas = true
 
 [node name="MuzzleFlash" parent="." instance=ExtResource("2_muzzle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, -0.23, -0.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, -0.2, -0.8)

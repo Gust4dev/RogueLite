@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://cqy5yt7xqw5kz"]
+[gd_scene load_steps=6 format=3 uid="uid://cqy5yt7xqw5kz"]
 
 [ext_resource type="Script" path="res://player/player_controller.gd" id="1_player"]
 [ext_resource type="Script" path="res://player/player_stats.gd" id="2_stats"]
 [ext_resource type="Script" path="res://player/camera_effects.gd" id="3_camera"]
+[ext_resource type="PackedScene" path="res://weapons/pistol.tscn" id="4_pistol"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.5
@@ -19,10 +20,15 @@ shape = SubResource("CapsuleShape3D_1")
 
 [node name="Camera3D" type="Camera3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
+cull_mask = 1048575
+near = 0.01
 fov = 90.0
 
 [node name="CameraEffects" type="Node" parent="Camera3D"]
 script = ExtResource("3_camera")
 
+[node name="Pistol" parent="Camera3D" instance=ExtResource("4_pistol")]
+
 [node name="PlayerStats" type="Node" parent="."]
 script = ExtResource("2_stats")
+

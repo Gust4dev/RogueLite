@@ -272,17 +272,17 @@ func equip_weapon(weapon: Node3D) -> void:
 
 	current_weapon = weapon
 
-	# Adiciona como filho da câmera
-	if camera:
-		if weapon.get_parent() != camera:
-			if weapon.get_parent():
-				weapon.get_parent().remove_child(weapon)
-			camera.add_child(weapon)
-
-		# Posiciona a arma centralizada (lógica)
-		# O deslocamento visual é tratado dentro da cena da própria arma
-		weapon.position = Vector3.ZERO
-		weapon.rotation = Vector3.ZERO
+	# Adiciona como filho do PLAYER (não da câmera) para evitar bug de skinned mesh
+	if weapon.get_parent() != self:
+		if weapon.get_parent():
+			weapon.get_parent().remove_child(weapon)
+		add_child(weapon)
+	
+	# Posiciona a arma na altura da câmera
+	weapon.position = Vector3(0, 1.6, 0)  # Altura da câmera
+	weapon.rotation = Vector3.ZERO
+	
+	print("[Player] Arma equipada como filho do Player")
 
 
 func take_damage(amount: float) -> void:

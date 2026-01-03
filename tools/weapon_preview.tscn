@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://cakjfut8h18r7"]
+
+[ext_resource type="Script" uid="uid://bitnns46gfh87" path="res://tools/weapon_preview_tool.gd" id="1_preview"]
+[ext_resource type="PackedScene" uid="uid://smn432enq5fv" path="res://assets/weapons/Pistol/p9_manny_fps_animations.glb" id="2_pistol"]
+
+[node name="WeaponPreview" type="Node3D"]
+script = ExtResource("1_preview")
+weapon_position = Vector3(-0.005, -3.345, -0.025)
+
+[node name="WeaponMesh" parent="." instance=ExtResource("2_pistol")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.005, -3.345, -0.025)
+
+[node name="PreviewCamera" type="Camera3D" parent="."]
+fov = 90.0
+near = 0.01
