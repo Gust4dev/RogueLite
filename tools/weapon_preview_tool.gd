@@ -32,6 +32,39 @@ class_name WeaponPreviewTool
 		weapon_scale = value
 		_update_weapon_transform()
 
+# === SELEÇÃO DE ARMA ===
+@export_group("Weapon Selection")
+@export_enum("Pistol", "Revolver", "SMG", "Shotgun", "Sniper", "LMG") var selected_weapon: String = "Pistol":
+	set(value):
+		selected_weapon = value
+		if Engine.is_editor_hint():
+			_load_selected_weapon()
+
+@export var reload_weapon: bool = false:
+	set(value):
+		if value and Engine.is_editor_hint():
+			_load_selected_weapon()
+
+@export var export_to_console: bool = false:
+	set(value):
+		if value and Engine.is_editor_hint():
+			print_transform_for_scene()
+
+@export var save_to_current_weapon_file: bool = false:
+	set(value):
+		if value and Engine.is_editor_hint():
+			_save_to_weapon_tscn()
+
+# Mapeamento de nomes para caminhos de cena
+var weapon_scenes = {
+	"Pistol": "res://weapons/pistol/pistol.tscn",
+	"Revolver": "res://weapons/revolver/revolver.tscn",
+	"SMG": "res://weapons/smg/smg.tscn",
+	"Shotgun": "res://weapons/shotgun/shotgun.tscn",
+	"Sniper": "res://weapons/sniper/sniper.tscn",
+	"LMG": "res://weapons/lmg/lmg.tscn"
+}
+
 # === PRESETS ===
 @export_group("Quick Presets")
 @export var apply_pistol_preset: bool = false:
@@ -75,20 +108,43 @@ func _ready() -> void:
 
 func _setup_editor_preview() -> void:
 	"""Configura a preview no editor"""
-	# Encontra o primeiro filho Node3D (o mesh da arma)
-	for child in get_children():
-		if child is Node3D and not child is Camera3D:
-			_weapon_mesh = child
-			break
+	_load_selected_weapon()
 	
 	# Cria câmera de preview
 	if show_camera_preview:
 		_create_preview_camera()
 	
 	_update_weapon_transform()
+
+
+func _load_selected_weapon() -> void:
+	"""Carrega o modelo da arma selecionada"""
+	# Limpa filhos antigos (exceto a câmera)
+	for child in get_children():
+		if child is Node3D and not child is Camera3D:
+			child.free()
 	
-	# Toca animação idle
-	_play_idle_animation()
+	var path = ""
+	match selected_weapon:
+		"Pistol": path = "res://assets/weapons/Pistol/p9_manny_fps_animations.glb"
+		"Revolver": path = "res://assets/weapons/Revolver/revolver_animated.glb"
+		"SMG": path = "res://assets/weapons/SMG/animated_mp5.glb"
+		"Shotgun": path = "res://assets/weapons/Shotgun/shotgun_animated.glb"
+		"Sniper": path = "res://assets/weapons/Sniper/sniper_animated.glb"
+		"LMG": path = "res://assets/weapons/LMG/minigun_animated.glb"
+	
+	if path == "" or not ResourceLoader.exists(path):
+		printerr("[Preview] Erro: Modelo não encontrado em ", path)
+		return
+		
+	var scene = load(path)
+	if scene:
+		_weapon_mesh = scene.instantiate()
+		add_child(_weapon_mesh)
+		_weapon_mesh.owner = self
+		print("[Preview] Carregada: ", selected_weapon)
+		_play_idle_animation()
+		_update_weapon_transform()
 
 
 func _play_idle_animation() -> void:
@@ -202,3 +258,83 @@ func print_transform_for_scene() -> void:
 		basis.z.x, ", ", basis.z.y, ", ", basis.z.z, ", ",
 		weapon_position.x, ", ", weapon_position.y, ", ", weapon_position.z, ")")
 	print("==========================================")
+
+
+func _save_to_weapon_tscn() -> void:
+	"""Salva o transform atual no arquivo .tscn da arma selecionada"""
+	var tscn_path = weapon_scenes.get(selected_weapon, "")
+	if tscn_path == "":
+		printerr("[Preview] Erro: Arma não mapeada: ", selected_weapon)
+		return
+	
+	# Converte res:// para caminho absoluto
+	var absolute_path = ProjectSettings.globalize_path(tscn_path)
+	
+	if not FileAccess.file_exists(absolute_path):
+		printerr("[Preview] Erro: Arquivo não encontrado: ", absolute_path)
+		return
+	
+	# Lê o arquivo linha por linha
+	var file = FileAccess.open(absolute_path, FileAccess.READ)
+	var lines = []
+	while not file.eof_reached():
+		lines.append(file.get_line())
+	file.close()
+	
+	# Gera a nova linha de transform
+	var rot_rad = weapon_rotation * (PI / 180.0)
+	var basis = Basis.from_euler(rot_rad)
+	basis = basis.scaled(weapon_scale)
+	
+	var transform_str = "transform = Transform3D(%.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g)" % [
+		basis.x.x, basis.x.y, basis.x.z,
+		basis.y.x, basis.y.y, basis.y.z,
+		basis.z.x, basis.z.y, basis.z.z,
+		weapon_position.x, weapon_position.y, weapon_position.z
+	]
+	
+	# Procura o nó do mesh e a linha de transform logo abaixo
+	var mesh_node_name = selected_weapon + "Mesh"
+	var found_node = false
+	var modified = false
+	
+	for i in range(lines.size()):
+		var line = lines[i]
+		
+		# Encontrou a declaração do nó do mesh?
+		if '[node name="' + mesh_node_name + '"' in line:
+			found_node = true
+			print("[Preview] Encontrado nó: ", mesh_node_name, " na linha ", i + 1)
+			continue
+		
+		# Se encontrou o nó, a próxima linha com 'transform =' é a que precisamos modificar
+		if found_node and line.strip_edges().begins_with("transform = "):
+			lines[i] = transform_str
+			modified = true
+			print("[Preview] Transform modificado na linha ", i + 1)
+			break
+		
+		# Se encontrou outro nó antes de achar transform, o mesh não tinha transform definido
+		if found_node and line.begins_with("[node") or line.begins_with("[sub_resource"):
+			printerr("[Preview] Erro: Nó encontrado mas não tinha linha de transform.")
+			break
+	
+	if not found_node:
+		printerr("[Preview] Erro: Nó '", mesh_node_name, "' não encontrado no arquivo.")
+		return
+	
+	if not modified:
+		printerr("[Preview] Erro: Linha de transform não encontrada para o nó.")
+		return
+	
+	# Salva o arquivo de volta
+	var write_file = FileAccess.open(absolute_path, FileAccess.WRITE)
+	for line in lines:
+		write_file.store_line(line)
+	write_file.close()
+	
+	print("==========================================")
+	print("[Preview] SUCESSO! Arquivo salvo: ", tscn_path)
+	print("  -> ", transform_str)
+	print("==========================================")
+	print("[Preview] IMPORTANTE: Recarregue a cena no editor (Ctrl+R ou feche/abra) para ver as mudanças.")

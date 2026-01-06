@@ -4,8 +4,6 @@ extends Node
 # Cada personagem está linked a uma arma específica
 # Sistema de unlock baseado em achievements
 
-class_name CharacterManager
-
 signal character_selected(character_id: String)
 signal character_unlocked(character_id: String)
 
@@ -32,7 +30,7 @@ func _init_characters() -> void:
 		"id": "soldier",
 		"name": "Soldier",
 		"description": "Balanced fighter with reliable pistol.",
-		"weapon_scene": "res://weapons/pistol.tscn",
+		"weapon_scene": "res://weapons/pistol/pistol.tscn",
 		"weapon_name": "Pistol",
 		"stats": {
 			"damage": 15,
@@ -51,7 +49,7 @@ func _init_characters() -> void:
 		"id": "gunslinger",
 		"name": "Gunslinger",
 		"description": "High damage, slow shots. Precision is key.",
-		"weapon_scene": "res://weapons/revolver.tscn",
+		"weapon_scene": "res://weapons/revolver/revolver.tscn",
 		"weapon_name": "Revolver",
 		"stats": {
 			"damage": 40,
@@ -70,7 +68,7 @@ func _init_characters() -> void:
 		"id": "commando",
 		"name": "Commando",
 		"description": "Spray and pray! High rate of fire, lower damage.",
-		"weapon_scene": "res://weapons/smg.tscn",
+		"weapon_scene": "res://weapons/smg/smg.tscn",
 		"weapon_name": "SMG",
 		"stats": {
 			"damage": 7,
@@ -89,7 +87,7 @@ func _init_characters() -> void:
 		"id": "hunter",
 		"name": "Hunter",
 		"description": "Devastating at close range. 8 pellets per shot.",
-		"weapon_scene": "res://weapons/shotgun.tscn",
+		"weapon_scene": "res://weapons/shotgun/shotgun.tscn",
 		"weapon_name": "Shotgun",
 		"stats": {
 			"damage": 64,  # 8 pellets x 8 dmg
@@ -110,7 +108,7 @@ func _init_characters() -> void:
 		"id": "sniper",
 		"name": "Sniper",
 		"description": "Long range precision. Scope for accuracy.",
-		"weapon_scene": "res://weapons/sniper.tscn",
+		"weapon_scene": "res://weapons/sniper/sniper.tscn",
 		"weapon_name": "Sniper Rifle",
 		"stats": {
 			"damage": 100,
@@ -131,7 +129,7 @@ func _init_characters() -> void:
 		"id": "heavy",
 		"name": "Heavy",
 		"description": "Suppressive fire. Spinup required, watch the heat!",
-		"weapon_scene": "res://weapons/lmg.tscn",
+		"weapon_scene": "res://weapons/lmg/lmg.tscn",
 		"weapon_name": "LMG",
 		"stats": {
 			"damage": 12,
@@ -194,7 +192,7 @@ func get_selected_character() -> Dictionary:
 func get_selected_weapon_scene() -> String:
 	"""Retorna o caminho da cena da arma do personagem selecionado"""
 	var char = get_selected_character()
-	return char.get("weapon_scene", "res://weapons/pistol.tscn")
+	return char.get("weapon_scene", "res://weapons/pistol/pistol.tscn")
 
 
 func spawn_selected_weapon() -> Node3D:

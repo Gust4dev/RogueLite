@@ -1,13 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://csmgweapon12345"]
+[gd_scene load_steps=4 format=3 uid="uid://cyatju1helsyq"]
 
-[ext_resource type="Script" uid="uid://csmg_script1234" path="res://weapons/smg.gd" id="1_smg"]
+[ext_resource type="Script" uid="uid://csmg_script1234" path="res://weapons/smg/smg.gd" id="1_smg"]
 [ext_resource type="PackedScene" uid="uid://ccj3yt7xqw8kv" path="res://vfx/muzzle_flash.tscn" id="2_muzzle"]
+[ext_resource type="PackedScene" path="res://assets/weapons/SMG/animated_mp5.glb" id="3_smg_mesh"]
 
 [node name="SMG" type="Node3D"]
 script = ExtResource("1_smg")
 
-[node name="SMGMesh" type="Node3D" parent="."]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -5.0, 0.1)
+[node name="SMGMesh" parent="." instance=ExtResource("3_smg_mesh")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.35, -0.4, -0.3)
 
 [node name="RayCast3D" type="RayCast3D" parent="."]
 target_position = Vector3(0, 0, -100)

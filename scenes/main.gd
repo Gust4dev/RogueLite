@@ -6,7 +6,7 @@ extends Node3D
 @onready var hud = $HUD
 
 # Preload de armas (fallback se CharacterManager não disponível)
-var pistol_scene = preload("res://weapons/pistol.tscn")
+var pistol_scene = preload("res://weapons/pistol/pistol.tscn")
 
 
 func _ready() -> void:
@@ -48,8 +48,7 @@ func _spawn_character_weapon() -> void:
 	if weapon and player:
 		# Adiciona arma à câmera
 		player.get_node("Camera3D").add_child(weapon)
-		weapon.position = Vector3(0.3, -0.3, -0.5)  # Posição padrão FPS
-
+		
 		# Registra como arma atual
 		player.current_weapon = weapon
 

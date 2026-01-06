@@ -101,17 +101,24 @@ func _ready() -> void:
 	# Adiciona ao grupo weapons
 	add_to_group("weapons")
 
-	# Buscar mesh dinamicamente (pode ser PistolMesh, EnemyMesh, etc.)
-	mesh = get_node_or_null("PistolMesh")
+	# Buscar mesh dinamicamente
+	# Tenta encontrar por nomes comuns primeiro
+	var mesh_names = ["PistolMesh", "RevolverMesh", "SMGMesh", "ShotgunMesh", "SniperMesh", "LMGMesh", "WeaponMesh", "Mesh"]
+	for m_name in mesh_names:
+		mesh = get_node_or_null(m_name)
+		if mesh: break
+		
 	if not mesh:
 		for child in get_children():
-			if child is Node3D and not child is RayCast3D:
+			if child is Node3D and not (child is RayCast3D or "Muzzle" in child.name or "Recoil" in child.name or "Sway" in child.name):
 				mesh = child
 				break
 
 	# Buscar AnimationPlayer dentro do mesh (GLBs importados geralmente têm um)
 	if mesh:
 		animation_player = mesh.find_child("AnimationPlayer", true, false)
+		# Debug: log mesh info para ajudar no posicionamento
+		_log_mesh_debug_info()
 
 	# Configura raycast
 	if raycast:
@@ -461,3 +468,31 @@ func _play_animation(anim_name: String, custom_speed: float = -1.0) -> void:
 		
 		animation_player.speed_scale = speed
 		animation_player.play(anim_name)
+
+
+func _log_mesh_debug_info() -> void:
+	"""Loga informações sobre o mesh para ajudar no posicionamento"""
+	if not mesh:
+		return
+		
+	var mesh_node: MeshInstance3D = null
+	
+	# Procura por MeshInstance3D recursivamente
+	if mesh is MeshInstance3D:
+		mesh_node = mesh
+	else:
+		for child in mesh.find_children("", "MeshInstance3D", true, false):
+			mesh_node = child
+			break
+			
+	if mesh_node:
+		var aabb: AABB = mesh_node.get_aabb()
+		var size = aabb.size * mesh_node.scale
+		print("[%s] Mesh Info:" % name)
+		print("  - Global Position: ", mesh_node.global_position)
+		print("  - Local Position: ", mesh_node.position)
+		print("  - AABB Size (scaled): ", size)
+		print("  - Mesh Name: ", mesh_node.name)
+	else:
+		# Pode ser um SkinnedMesh (ImporterMeshInstance3D) ou apenas Nodes
+		print("[%s] MeshInstance3D não encontrada no modelo. Verifique a estrutura." % name)

@@ -1,15 +1,18 @@
 [gd_scene load_steps=3 format=3 uid="uid://cakjfut8h18r7"]
 
 [ext_resource type="Script" uid="uid://bitnns46gfh87" path="res://tools/weapon_preview_tool.gd" id="1_preview"]
-[ext_resource type="PackedScene" uid="uid://smn432enq5fv" path="res://assets/weapons/Pistol/p9_manny_fps_animations.glb" id="2_pistol"]
+[ext_resource type="PackedScene" uid="uid://dyhj082htoedr" path="res://assets/weapons/Revolver/revolver_animated.glb" id="2_ckpha"]
 
 [node name="WeaponPreview" type="Node3D"]
 script = ExtResource("1_preview")
-weapon_position = Vector3(-0.005, -3.345, -0.025)
-
-[node name="WeaponMesh" parent="." instance=ExtResource("2_pistol")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, -0.005, -3.345, -0.025)
+weapon_position = Vector3(0.295, -0.595, -0.935)
+weapon_rotation = Vector3(0, 180, 360)
+weapon_scale = Vector3(0.04, 0.04, 0.04)
+selected_weapon = "Revolver"
 
 [node name="PreviewCamera" type="Camera3D" parent="."]
 fov = 90.0
 near = 0.01
+
+[node name="Sketchfab_Scene" type="Node3D" parent="." instance=ExtResource("2_ckpha")]
+transform = Transform3D(-0.04, 6.993822e-09, -3.496911e-09, 6.993822e-09, 0.04, 0, 3.496911e-09, -6.1141935e-16, -0.04, 0.295, -0.595, -0.935)

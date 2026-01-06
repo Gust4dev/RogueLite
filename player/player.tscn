@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://player/player_controller.gd" id="1_player"]
 [ext_resource type="Script" path="res://player/player_stats.gd" id="2_stats"]
 [ext_resource type="Script" path="res://player/camera_effects.gd" id="3_camera"]
-[ext_resource type="PackedScene" path="res://weapons/pistol.tscn" id="4_pistol"]
+[ext_resource type="PackedScene" path="res://weapons/pistol/pistol.tscn" id="4_pistol"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
 radius = 0.5

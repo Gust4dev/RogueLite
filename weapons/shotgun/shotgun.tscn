@@ -1,13 +1,14 @@
-[gd_scene load_steps=3 format=3 uid="uid://cshotgunweapon1"]
+[gd_scene load_steps=4 format=3 uid="uid://b2lrpu6f6gaae"]
 
-[ext_resource type="Script" uid="uid://cshotgun_script" path="res://weapons/shotgun.gd" id="1_shotgun"]
+[ext_resource type="Script" uid="uid://cshotgun_script" path="res://weapons/shotgun/shotgun.gd" id="1_shotgun"]
 [ext_resource type="PackedScene" uid="uid://ccj3yt7xqw8kv" path="res://vfx/muzzle_flash.tscn" id="2_muzzle"]
+[ext_resource type="PackedScene" path="res://assets/weapons/Shotgun/shotgun_animated.glb" id="3_shotgun_mesh"]
 
 [node name="Shotgun" type="Node3D"]
 script = ExtResource("1_shotgun")
 
-[node name="ShotgunMesh" type="Node3D" parent="."]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -5.0, 0.15)
+[node name="ShotgunMesh" parent="." instance=ExtResource("3_shotgun_mesh")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.3, -0.25, -0.6)
 
 [node name="RayCast3D" type="RayCast3D" parent="."]
 target_position = Vector3(0, 0, -100)

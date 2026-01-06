@@ -1,4 +1,4 @@
-[gd_scene load_steps=3 format=3 uid="uid://cmainmenu12345"]
+[gd_scene load_steps=3 format=3 uid="uid://cyc8taatq1lyu"]
 
 [ext_resource type="Script" path="res://ui/main_menu.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://ccharselect1234" path="res://ui/character_select.tscn" id="2_charselect"]
