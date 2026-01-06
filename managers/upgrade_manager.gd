@@ -53,6 +53,10 @@ var current_weapon: Node3D = null
 # Upgrade scripts carregados
 var upgrade_scripts: Dictionary = {}
 
+# Weapon Transformation System
+var transformation_manager: WeaponTransformationManager = null
+var visual_events: WeaponVisualEvents = null
+
 
 func _ready() -> void:
 	# Inicializa pool de upgrades
@@ -171,9 +175,36 @@ func set_weapon(weapon: Node3D) -> void:
 	"""Define a arma atual"""
 	current_weapon = weapon
 
+	# Setup transformation system
+	_setup_transformation_system()
+
 	# Reaplica todos os upgrades ativos
 	for upgrade_id in active_upgrades:
 		_apply_upgrade_to_weapon(upgrade_id)
+
+
+func _setup_transformation_system() -> void:
+	"""Setup the weapon transformation system"""
+	if not current_weapon:
+		return
+
+	# Create or get transformation manager
+	transformation_manager = current_weapon.get_node_or_null("TransformationManager")
+	if not transformation_manager:
+		transformation_manager = WeaponTransformationManager.new()
+		transformation_manager.name = "TransformationManager"
+		current_weapon.add_child(transformation_manager)
+
+	transformation_manager.setup(current_weapon)
+
+	# Create or get visual events handler
+	visual_events = current_weapon.get_node_or_null("VisualEvents")
+	if not visual_events:
+		visual_events = WeaponVisualEvents.new()
+		visual_events.name = "VisualEvents"
+		current_weapon.add_child(visual_events)
+
+	visual_events.setup(current_weapon, transformation_manager)
 
 
 func show_upgrade_screen() -> void:
@@ -342,18 +373,33 @@ func _apply_upgrade_to_weapon(upgrade_id: String) -> void:
 
 
 func _update_weapon_visual() -> void:
-	"""Atualiza visual da arma baseado nos upgrades"""
+	"""Atualiza visual da arma baseado nos upgrades usando o sistema de transformacao"""
 	if not current_weapon:
 		return
 
-	# Busca o script de visual da arma
-	var visual_node = current_weapon.get_node_or_null("WeaponVisual")
-	if not visual_node and current_weapon.has_method("get_mesh"):
-		# Cria nó de visual se não existir
-		visual_node = Node.new()
-		visual_node.name = "WeaponVisual"
-		current_weapon.add_child(visual_node)
+	# Ensure transformation system is setup
+	if not transformation_manager:
+		_setup_transformation_system()
 
+	if not transformation_manager:
+		# Fallback to old system
+		_update_weapon_visual_legacy()
+		return
+
+	# Apply transformations for all active upgrades
+	for upgrade_id in active_upgrades:
+		var data = active_upgrades[upgrade_id]
+		var level = data.current_level
+
+		# Apply or update visual transformation
+		if transformation_manager.has_transformation(upgrade_id):
+			transformation_manager.update_upgrade_level(upgrade_id, level)
+		else:
+			transformation_manager.apply_upgrade_visual(upgrade_id, level)
+
+
+func _update_weapon_visual_legacy() -> void:
+	"""Legacy visual update (fallback)"""
 	# Determina cor principal baseada no upgrade mais forte
 	var primary_color = Color.WHITE
 	var total_intensity = 0.0
@@ -599,5 +645,13 @@ func reset_upgrades() -> void:
 
 	active_upgrades.clear()
 
-	# Remove glow da arma
+	# Clear transformation system
+	if transformation_manager:
+		transformation_manager.clear_all_transformations()
+
+	# Cleanup visual events
+	if visual_events:
+		visual_events.cleanup()
+
+	# Remove glow da arma (legacy fallback)
 	_apply_weapon_glow(Color.WHITE, 0.0)
