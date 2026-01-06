@@ -138,6 +138,9 @@ func _ready() -> void:
 	# Emite signal inicial de ammo
 	ammo_changed.emit(current_ammo, magazine_size)
 
+	# Notify UpgradeManager of this weapon (deferred to ensure all systems are ready)
+	call_deferred("_notify_upgrade_manager")
+
 
 func _setup_subsystems() -> void:
 	"""Configura os sub-sistemas de recoil e sway"""
@@ -496,3 +499,14 @@ func _log_mesh_debug_info() -> void:
 	else:
 		# Pode ser um SkinnedMesh (ImporterMeshInstance3D) ou apenas Nodes
 		print("[%s] MeshInstance3D não encontrada no modelo. Verifique a estrutura." % name)
+
+
+func _notify_upgrade_manager() -> void:
+	"""Notify UpgradeManager that this weapon is ready"""
+	if UpgradeManager:
+		UpgradeManager.set_weapon(self)
+
+
+func get_weapon_type() -> String:
+	"""Returns the weapon type identifier - override in subclasses"""
+	return "base"
