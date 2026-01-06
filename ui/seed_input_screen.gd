@@ -287,12 +287,16 @@ func show_screen(manager: SeedManager = null) -> void:
 	# Carrega favoritos
 	_load_favorites()
 
-	# Mostra com animação
-	modulate.a = 0.0
+	# Mostra com animação (CanvasLayer não tem modulate, anima os filhos)
+	for child in get_children():
+		if child is CanvasItem:
+			child.modulate.a = 0.0
 	visible = true
 
 	var tween = create_tween()
-	tween.tween_property(self, "modulate:a", 1.0, 0.2)
+	for child in get_children():
+		if child is CanvasItem:
+			tween.parallel().tween_property(child, "modulate:a", 1.0, 0.2)
 
 	# Foca no input
 	seed_input.grab_focus()
@@ -301,7 +305,9 @@ func show_screen(manager: SeedManager = null) -> void:
 ## Esconde a tela
 func hide_screen() -> void:
 	var tween = create_tween()
-	tween.tween_property(self, "modulate:a", 0.0, 0.15)
+	for child in get_children():
+		if child is CanvasItem:
+			tween.parallel().tween_property(child, "modulate:a", 0.0, 0.15)
 	await tween.finished
 	visible = false
 

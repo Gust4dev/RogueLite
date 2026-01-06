@@ -43,9 +43,10 @@ var vignette_drawer: VignetteDrawer = null
 var xp_bar: ProgressBar = null
 var level_label: Label = null
 
-# === DASH SYSTEM ===
-var dash_container: HBoxContainer = null
-var dash_indicators: Array[ProgressBar] = []
+# === DASH/STAMINA SYSTEM ===
+var stamina_container: HBoxContainer = null
+var stamina_bar: ProgressBar = null
+var stamina_label: Label = null
 
 # === LEVEL UP SCREEN ===
 var level_up_screen: LevelUpScreen = null
@@ -215,52 +216,57 @@ func _setup_xp_ui() -> void:
 
 
 func _setup_dash_indicators() -> void:
-	"""Configura indicadores de cargas de dash"""
-	dash_container = HBoxContainer.new()
-	dash_container.name = "DashContainer"
-	dash_container.anchor_left = 0.02
-	dash_container.anchor_right = 0.15
-	dash_container.anchor_top = 0.92
-	dash_container.anchor_bottom = 0.95
-	dash_container.add_theme_constant_override("separation", 5)
-	$Control.add_child(dash_container)
+	"""Configura barra de estamina contínua (souls-like)"""
+	stamina_container = HBoxContainer.new()
+	stamina_container.name = "StaminaContainer"
+	stamina_container.anchor_left = 0.02
+	stamina_container.anchor_right = 0.18
+	stamina_container.anchor_top = 0.92
+	stamina_container.anchor_bottom = 0.95
+	stamina_container.add_theme_constant_override("separation", 8)
+	$Control.add_child(stamina_container)
 
-	# Label "DASH"
-	var dash_label = Label.new()
-	dash_label.text = "DASH"
-	dash_label.add_theme_font_size_override("font_size", 12)
-	dash_label.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0))
-	dash_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	dash_container.add_child(dash_label)
+	# Label "STAMINA"
+	stamina_label = Label.new()
+	stamina_label.text = "STAMINA"
+	stamina_label.add_theme_font_size_override("font_size", 11)
+	stamina_label.add_theme_color_override("font_color", Color(0.3, 0.8, 1.0))
+	stamina_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	stamina_container.add_child(stamina_label)
 
-	# 3 indicadores de carga
-	for i in range(3):
-		var indicator = ProgressBar.new()
-		indicator.name = "DashCharge_" + str(i)
-		indicator.custom_minimum_size = Vector2(30, 10)
-		indicator.max_value = 100
-		indicator.value = 100
-		indicator.show_percentage = false
+	# Barra de estamina contínua
+	stamina_bar = ProgressBar.new()
+	stamina_bar.name = "StaminaBar"
+	stamina_bar.custom_minimum_size = Vector2(120, 12)
+	stamina_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	stamina_bar.max_value = 100
+	stamina_bar.value = 100
+	stamina_bar.show_percentage = false
 
-		# Estilo
-		var bg = StyleBoxFlat.new()
-		bg.bg_color = Color(0.2, 0.2, 0.3, 0.8)
-		bg.corner_radius_top_left = 2
-		bg.corner_radius_top_right = 2
-		bg.corner_radius_bottom_left = 2
-		bg.corner_radius_bottom_right = 2
-		indicator.add_theme_stylebox_override("background", bg)
+	# Estilo de fundo
+	var bg = StyleBoxFlat.new()
+	bg.bg_color = Color(0.15, 0.15, 0.25, 0.85)
+	bg.corner_radius_top_left = 3
+	bg.corner_radius_top_right = 3
+	bg.corner_radius_bottom_left = 3
+	bg.corner_radius_bottom_right = 3
+	bg.border_width_bottom = 1
+	bg.border_width_top = 1
+	bg.border_width_left = 1
+	bg.border_width_right = 1
+	bg.border_color = Color(0.2, 0.5, 0.7, 0.5)
+	stamina_bar.add_theme_stylebox_override("background", bg)
 
-		var fill = StyleBoxFlat.new()
-		fill.bg_color = Color(0.3, 0.8, 1.0, 0.9)
-		fill.corner_radius_top_left = 2
-		fill.corner_radius_top_right = 2
-		fill.corner_radius_bottom_left = 2
-		fill.corner_radius_bottom_right = 2
-		indicator.add_theme_stylebox_override("fill", fill)
+	# Estilo de preenchimento
+	var fill = StyleBoxFlat.new()
+	fill.bg_color = Color(0.2, 0.7, 0.9, 0.9)
+	fill.corner_radius_top_left = 3
+	fill.corner_radius_top_right = 3
+	fill.corner_radius_bottom_left = 3
+	fill.corner_radius_bottom_right = 3
+	stamina_bar.add_theme_stylebox_override("fill", fill)
 
-		dash_container.add_child(indicator)
-		dash_indicators.append(indicator)
+	stamina_container.add_child(stamina_bar)
 
 
 func _setup_level_up_screen() -> void:
@@ -647,8 +653,8 @@ func update_timer(seconds: int) -> void:
 # === XP SYSTEM UPDATES ===
 
 func _update_dash_indicators() -> void:
-	"""Atualiza indicadores de cargas de dash"""
-	if dash_indicators.is_empty():
+	"""Atualiza a barra de estamina contínua"""
+	if not stamina_bar:
 		return
 
 	if not player_controller:
@@ -661,21 +667,22 @@ func _update_dash_indicators() -> void:
 	if not dash_sys:
 		return
 
-	var charges = dash_sys.get("charges") if dash_sys else 3
-	var charge_cooldown = dash_sys.get("charge_cooldown") if dash_sys else 10.0
+	# Lê valores do sistema de estamina
+	var current = dash_sys.get("current_stamina") if dash_sys else 100.0
+	var maximum = dash_sys.get("max_stamina") if dash_sys else 100.0
 
-	for i in range(dash_indicators.size()):
-		var indicator: ProgressBar = dash_indicators[i]
-		if i < charges:
-			# Carga disponível
-			indicator.value = 100
-			indicator.self_modulate = Color.WHITE
-		else:
-			# Carga em cooldown
-			var timer_value = dash_sys.charge_timers[i] if i < dash_sys.charge_timers.size() else 0.0
-			var progress = (1.0 - timer_value / charge_cooldown) * 100.0
-			indicator.value = progress
-			indicator.self_modulate = Color(0.6, 0.6, 0.6)
+	# Atualiza a barra
+	stamina_bar.max_value = maximum
+	stamina_bar.value = current
+
+	# Muda cor quando estamina está baixa (não pode dar dash)
+	var stamina_cost = dash_sys.get("stamina_cost") if dash_sys else 33.33
+	if current < stamina_cost:
+		# Estamina insuficiente - cor vermelha/laranja
+		stamina_bar.self_modulate = Color(1.0, 0.5, 0.3)
+	else:
+		# Estamina suficiente - cor normal
+		stamina_bar.self_modulate = Color.WHITE
 
 
 func _on_xp_changed(current: int, required: int) -> void:

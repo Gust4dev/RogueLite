@@ -19,17 +19,18 @@ signal spawn_density_changed(new_density: float)
 
 # === CONFIGURAÇÃO DE SPAWN ===
 @export_group("Spawn Configuration")
-@export var base_wave_size: int = 3
-@export var wave_size_increment: float = 0.5  # Aumenta 0.5 por minuto
-@export var max_wave_size: int = 12
-@export var spawn_interval: float = 8.0  # Segundos entre waves
-@export var min_spawn_distance: float = 25.0  # Distância mínima do player
-@export var max_spawn_distance: float = 45.0  # Distância máxima do player
-@export var max_enemies_alive: int = 30
+@export var base_wave_size: int = 2           # Início calmo
+@export var wave_size_increment: float = 1.5  # Aumenta 1.5 por minuto
+@export var max_wave_size: int = 25           # Caos nos minutos finais
+@export var spawn_interval: float = 6.0       # Segundos entre waves (inicial)
+@export var min_spawn_interval: float = 1.5   # Mínimo intervalo (caos total)
+@export var min_spawn_distance: float = 20.0  # Distância mínima do player
+@export var max_spawn_distance: float = 50.0  # Distância máxima do player
+@export var max_enemies_alive: int = 50       # Mais inimigos simultâneos
 
 @export_group("Difficulty Scaling")
-@export var difficulty_scale_rate: float = 0.1  # 10% por minuto
-@export var max_difficulty_multiplier: float = 3.0
+@export var difficulty_scale_rate: float = 0.2  # 20% por minuto (mais agressivo)
+# Sem limite de dificuldade máxima - escala infinitamente
 
 # === REFERÊNCIAS ===
 var map_generator: MapGenerator = null
@@ -150,14 +151,21 @@ func _process(delta: float) -> void:
 
 
 func _update_difficulty() -> void:
-	"""Atualiza o multiplicador de dificuldade baseado no tempo"""
+	"""Atualiza o multiplicador de dificuldade baseado no tempo - sem limite!"""
 	var minutes_elapsed = time_elapsed / 60.0
-	var new_multiplier = 1.0 + (minutes_elapsed * difficulty_scale_rate)
-	new_multiplier = minf(new_multiplier, max_difficulty_multiplier)
-
-	if abs(new_multiplier - difficulty_multiplier) > 0.1:
+	
+	# Dificuldade escala exponencialmente para ficar caótico perto dos 15 min
+	# Fórmula: 1.0 no início, ~2.0 aos 7min, ~4.0 aos 12min, ~6.0 aos 15min
+	var new_multiplier = 1.0 + (minutes_elapsed * difficulty_scale_rate) + (pow(minutes_elapsed / 5.0, 2) * 0.3)
+	
+	if abs(new_multiplier - difficulty_multiplier) > 0.05:
 		difficulty_multiplier = new_multiplier
 		spawn_density_changed.emit(difficulty_multiplier)
+		
+		# Reduz spawn interval dinamicamente
+		var new_interval = maxf(spawn_interval / sqrt(difficulty_multiplier), min_spawn_interval)
+		if spawn_timer and spawn_timer.wait_time != new_interval:
+			spawn_timer.wait_time = new_interval
 
 
 func _on_spawn_timer_timeout() -> void:

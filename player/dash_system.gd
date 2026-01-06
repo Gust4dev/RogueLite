@@ -1,28 +1,31 @@
 extends Node
 
-# Dash System - Sistema de dash com 3 cargas
-# Movimento rápido com efeitos visuais satisfatórios
+# Dash System - Sistema de dash com barra de estamina (souls-like)
+# Barra regenera gradualmente, cada dash consome uma porção
 
 class_name DashSystem
 
 # === SIGNALS ===
 signal dash_started(direction: Vector3)
 signal dash_ended()
-signal charge_used(remaining: int)
-signal charge_restored(total: int)
-signal charges_changed(current: int, max_charges: int, timers: Array)
+signal stamina_changed(current: float, maximum: float)
+signal dash_used()
 
 # === CONFIGURAÇÃO ===
 @export_group("Dash Config")
-@export var max_charges: int = 3           # Máximo de cargas
-@export var charge_cooldown: float = 10.0  # Cooldown por carga (segundos)
-@export var dash_distance: float = 8.0     # Distância do dash
-@export var dash_duration: float = 0.12    # Duração do movimento
+@export var dash_distance: float = 8.0           # Distância do dash
+@export var dash_duration: float = 0.12          # Duração do movimento
 @export var invulnerability_duration: float = 0.15  # Frames de invencibilidade
 
+@export_group("Stamina Config")
+@export var max_stamina: float = 100.0           # Estamina máxima
+@export var stamina_cost: float = 33.33          # Custo por dash (~3 dashes com barra cheia)
+@export var stamina_regen_rate: float = 15.0     # Pontos por segundo
+@export var stamina_regen_delay: float = 0.3     # Delay após usar dash antes de regenerar
+
 # === ESTADO ===
-var charges: int = 3
-var charge_timers: Array[float] = [0.0, 0.0, 0.0]  # Timers individuais
+var current_stamina: float = 100.0
+var regen_cooldown: float = 0.0
 var is_dashing: bool = false
 var is_invulnerable: bool = false
 var dash_direction: Vector3 = Vector3.ZERO
@@ -39,10 +42,8 @@ var dash_end_pos: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
-	charges = max_charges
-	charge_timers.resize(max_charges)
-	for i in range(max_charges):
-		charge_timers[i] = 0.0
+	current_stamina = max_stamina
+	stamina_changed.emit(current_stamina, max_stamina)
 
 
 func setup(player_ref: CharacterBody3D, camera_fx: CameraEffects = null) -> void:
@@ -52,34 +53,36 @@ func setup(player_ref: CharacterBody3D, camera_fx: CameraEffects = null) -> void
 
 
 func _process(delta: float) -> void:
-	_update_charge_timers(delta)
+	_update_stamina_regen(delta)
 	
 	if is_dashing:
 		_process_dash(delta)
 
 
-func _update_charge_timers(delta: float) -> void:
-	"""Atualiza timers de recarga das cargas"""
-	var charges_restored = false
+func _update_stamina_regen(delta: float) -> void:
+	"""Regenera estamina gradualmente após cooldown"""
+	# Atualiza cooldown
+	if regen_cooldown > 0:
+		regen_cooldown -= delta
+		return
 	
-	for i in range(max_charges):
-		if charge_timers[i] > 0:
-			charge_timers[i] -= delta
-			
-			if charge_timers[i] <= 0:
-				charge_timers[i] = 0.0
-				charges += 1
-				charges = min(charges, max_charges)
-				charges_restored = true
-				charge_restored.emit(charges)
-	
-	# Emite sinal de mudança de cargas
-	charges_changed.emit(charges, max_charges, charge_timers.duplicate())
+	# Regenera estamina
+	if current_stamina < max_stamina:
+		var old_stamina = current_stamina
+		current_stamina = minf(current_stamina + stamina_regen_rate * delta, max_stamina)
+		
+		if current_stamina != old_stamina:
+			stamina_changed.emit(current_stamina, max_stamina)
 
 
 func can_dash() -> bool:
-	"""Verifica se pode usar dash"""
-	return charges > 0 and not is_dashing and player != null
+	"""Verifica se pode usar dash (tem estamina suficiente)"""
+	return current_stamina >= stamina_cost and not is_dashing and player != null
+
+
+func get_dash_count() -> int:
+	"""Retorna quantos dashes podem ser feitos com a estamina atual"""
+	return int(current_stamina / stamina_cost)
 
 
 func execute_dash(direction: Vector3) -> void:
@@ -87,16 +90,12 @@ func execute_dash(direction: Vector3) -> void:
 	if not can_dash():
 		return
 	
-	# Consome uma carga
-	charges -= 1
+	# Consome estamina
+	current_stamina -= stamina_cost
+	regen_cooldown = stamina_regen_delay
 	
-	# Encontra o índice do timer que está em 0 (carga que foi usada)
-	for i in range(max_charges):
-		if charge_timers[i] <= 0:
-			charge_timers[i] = charge_cooldown
-			break
-	
-	charge_used.emit(charges)
+	stamina_changed.emit(current_stamina, max_stamina)
+	dash_used.emit()
 	
 	# Configura o dash
 	dash_direction = direction.normalized()
@@ -199,20 +198,14 @@ func _trigger_dash_effects() -> void:
 			camera_effects.apply_screen_shake(0.3)
 
 
-func get_charges() -> int:
-	"""Retorna cargas atuais"""
-	return charges
+func get_stamina() -> float:
+	"""Retorna estamina atual"""
+	return current_stamina
 
 
-func get_charge_progress(index: int) -> float:
-	"""Retorna progresso de recarga de uma carga específica (0.0 a 1.0)"""
-	if index < 0 or index >= max_charges:
-		return 1.0
-	
-	if charge_timers[index] <= 0:
-		return 1.0
-	
-	return 1.0 - (charge_timers[index] / charge_cooldown)
+func get_stamina_percentage() -> float:
+	"""Retorna porcentagem de estamina (0.0 a 1.0)"""
+	return current_stamina / max_stamina
 
 
 func is_player_invulnerable() -> bool:
@@ -222,10 +215,49 @@ func is_player_invulnerable() -> bool:
 
 func reset() -> void:
 	"""Reseta o sistema de dash"""
-	charges = max_charges
+	current_stamina = max_stamina
 	is_dashing = false
 	is_invulnerable = false
 	dash_progress = 0.0
-	
-	for i in range(max_charges):
-		charge_timers[i] = 0.0
+	regen_cooldown = 0.0
+	stamina_changed.emit(current_stamina, max_stamina)
+
+
+# === UPGRADE SUPPORT ===
+
+func upgrade_stamina(additional_stamina: float) -> void:
+	"""Aumenta a estamina máxima (chamado por upgrades)"""
+	max_stamina += additional_stamina
+	current_stamina += additional_stamina  # Também aumenta a atual
+	stamina_changed.emit(current_stamina, max_stamina)
+
+
+func upgrade_regen(additional_regen: float) -> void:
+	"""Aumenta a taxa de regeneração (chamado por upgrades)"""
+	stamina_regen_rate += additional_regen
+
+
+func upgrade_cost_reduction(reduction_percent: float) -> void:
+	"""Reduz o custo de estamina por dash (chamado por upgrades)"""
+	stamina_cost *= (1.0 - reduction_percent)
+	stamina_cost = maxf(stamina_cost, 10.0)  # Mínimo de 10 de custo
+
+
+# === BACKWARD COMPATIBILITY ===
+# Mantém compatibilidade com código antigo que esperava charges
+
+func get_charges() -> int:
+	"""DEPRECATED: Use get_dash_count() instead. Returns available dash count."""
+	return get_dash_count()
+
+
+func get_charge_progress(index: int) -> float:
+	"""DEPRECATED: Returns fill percentage for a given 'charge slot'"""
+	var dashes_available = current_stamina / stamina_cost
+	if index < int(dashes_available):
+		return 1.0
+	elif index == int(dashes_available):
+		# Carga parcial
+		return fmod(dashes_available, 1.0)
+	else:
+		return 0.0

@@ -897,19 +897,42 @@ func _setup_navigation() -> void:
 
 	var nav_mesh = NavigationMesh.new()
 
-	# Configurações do NavMesh
-	nav_mesh.agent_radius = 0.5
+	# Configurações do NavMesh - agent properties
+	nav_mesh.agent_radius = 0.6
 	nav_mesh.agent_height = 2.0
-	nav_mesh.agent_max_climb = 0.5
+	nav_mesh.agent_max_climb = 0.3
 	nav_mesh.agent_max_slope = 45.0
 	nav_mesh.cell_size = 0.25
-	nav_mesh.cell_height = 0.25
+	nav_mesh.cell_height = 0.2
 
-	# Geometria fonte (todo o container de obstáculos + chão + paredes)
+	# IMPORTANTE: Configura para parsear geometria de todos os StaticBody3D
 	nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	
+	# Usa SOURCE_GEOMETRY_ROOT_NODE_CHILDREN para pegar TODOS os filhos do root
+	# Isso inclui floor, walls, obstacles que são irmãos do navigation_region
+	nav_mesh.geometry_source_geometry_mode = NavigationMesh.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
+	
+	# Collision mask: layer 4 é onde estão os obstáculos/paredes
+	nav_mesh.geometry_collision_mask = 4
+	
+	# Região de sample (área da arena)
+	nav_mesh.filter_low_hanging_obstacles = true
+	nav_mesh.filter_ledge_spans = true
+	nav_mesh.filter_walkable_low_height_spans = true
+	
+	# Borda da arena
+	nav_mesh.border_size = 1.0
+	nav_mesh.region_min_size = 2.0
+	nav_mesh.region_merge_size = 20.0
 
 	navigation_region.navigation_mesh = nav_mesh
+	
+	# Adiciona o NavigationRegion como filho do MapGenerator
+	# (que já é filho da current_scene, então compartilham hierarquia)
 	add_child(navigation_region)
+	
+	# Move para o primeiro filho para garantir que o bake pegue tudo
+	move_child(navigation_region, 0)
 
 
 func _bake_navmesh() -> void:

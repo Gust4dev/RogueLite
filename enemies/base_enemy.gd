@@ -116,26 +116,54 @@ func _physics_process(delta: float) -> void:
 		if can_attack:
 			attack()
 	else:
-		# Se está longe, segue o player
-		if navigation_agent:
-			navigation_agent.target_position = target.global_position
-
-			# Pega próxima posição do path
-			var next_position = navigation_agent.get_next_path_position()
-			var direction = (next_position - global_position).normalized()
-
-			# Move em direção ao target
-			velocity.x = direction.x * speed
-			velocity.z = direction.z * speed
-
-			# Olha para onde está indo (com verificação de distância)
-			if direction.length() > 0.1:
-				var look_target = Vector3(global_position.x + direction.x, global_position.y, global_position.z + direction.z)
-				if global_position.distance_to(look_target) > 0.1:
-					look_at(look_target)
+		# Se está longe, segue o player usando navegação
+		_navigate_to_target()
 
 	# Atualiza movimento
 	move_and_slide()
+
+
+func _navigate_to_target() -> void:
+	"""Navega em direção ao target usando NavigationAgent ou movimento direto"""
+	if not target:
+		return
+	
+	var target_pos = target.global_position
+	var direction = Vector3.ZERO
+	
+	if navigation_agent:
+		# Define o destino
+		navigation_agent.target_position = target_pos
+		
+		# Verifica se há um caminho disponível
+		# get_next_path_position retorna a posição atual se não houver caminho
+		var next_pos = navigation_agent.get_next_path_position()
+		var distance_to_next = global_position.distance_to(next_pos)
+		
+		# Se a próxima posição é muito próxima ou igual à atual, não há path
+		if distance_to_next < 0.1:
+			# Sem caminho válido - fallback para movimento direto
+			direction = (target_pos - global_position).normalized()
+		else:
+			# Há caminho - segue o path
+			direction = (next_pos - global_position).normalized()
+	else:
+		# Sem NavigationAgent - movimento direto
+		direction = (target_pos - global_position).normalized()
+	
+	# Remove componente Y para manter no plano horizontal
+	direction.y = 0
+	
+	# Aplica velocidade
+	if direction.length() > 0.1:
+		velocity.x = direction.x * speed
+		velocity.z = direction.z * speed
+		
+		# Olha para onde está indo
+		var look_target = global_position + direction
+		look_target.y = global_position.y
+		if global_position.distance_to(look_target) > 0.1:
+			look_at(look_target)
 
 func take_damage(amount: float) -> void:
 	"""Aplica dano ao inimigo"""

@@ -244,8 +244,8 @@ func spawn_boss(boss_index: int) -> void:
 	# Emite signal de aviso
 	boss_spawning.emit(boss_index + 1)
 
-	# Pausa spawns normais
-	spawn_paused = true
+	# NÃO pausa spawns normais - inimigos continuam aparecendo durante boss fight!
+	# spawn_paused = true  # REMOVIDO
 	boss_active = true
 
 	# Pequeno delay para buildup
@@ -275,7 +275,7 @@ func spawn_boss(boss_index: int) -> void:
 func _on_boss_died(boss_number: int, dropped_key: bool) -> void:
 	"""Callback quando um boss morre"""
 	boss_active = false
-	spawn_paused = false
+	# spawn_paused já é false - não precisa resetar
 	current_boss = null
 
 	# Emite signal
