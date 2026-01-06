@@ -23,6 +23,12 @@ var has_boss_key: bool = false
 var time_remaining: int = 900  # 15 minutos = 900 segundos
 var is_timer_running: bool = false
 
+# === CONFIGURAÇÃO DE ARENA PROCEDURAL ===
+var use_procedural_arena: bool = true
+var procedural_seed: int = -1  # -1 = random
+var procedural_biome: int = -1  # -1 = random
+var current_run_seed: int = 0  # Seed usado na run atual
+
 # Timer interno
 var timer: Timer
 
@@ -107,3 +113,36 @@ func _on_timer_timeout() -> void:
 		if time_remaining <= 0:
 			time_remaining = 0
 			lose_game()
+
+
+# === FUNÇÕES DE SEED ===
+
+func set_seed_for_next_run(seed_value: int, biome: int = -1) -> void:
+	"""Define o seed para a próxima run"""
+	procedural_seed = seed_value
+	procedural_biome = biome
+	print("[GameManager] Seed definido para próxima run: ", seed_value)
+
+
+func get_seed_for_run() -> int:
+	"""Retorna o seed a ser usado na run atual"""
+	if procedural_seed == -1:
+		randomize()
+		return randi()
+	return procedural_seed
+
+
+func clear_seed() -> void:
+	"""Limpa o seed customizado (volta para random)"""
+	procedural_seed = -1
+	procedural_biome = -1
+
+
+func set_current_run_seed(seed_value: int) -> void:
+	"""Registra o seed usado na run atual"""
+	current_run_seed = seed_value
+
+
+func get_current_run_seed() -> int:
+	"""Retorna o seed da run atual"""
+	return current_run_seed

@@ -26,6 +26,10 @@ var character_manager: CharacterManager = null
 # Prefab do botão de personagem
 var character_button_scene: PackedScene = null
 
+# Seed customizado (passado pelo main_menu)
+var custom_seed: int = -1  # -1 = random
+var use_custom_seed: bool = false
+
 
 func _ready() -> void:
 	# Obtém character manager

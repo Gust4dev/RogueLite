@@ -2,6 +2,7 @@ extends Node
 
 # Spawn Manager - Singleton que gerencia spawn de inimigos, bosses e itens
 # Controla onde e quando inimigos e bosses aparecem
+# Integra com sistema de geração procedural (MapGenerator/ProceduralArena)
 
 # === SIGNALS ===
 signal enemy_spawned(enemy: Node3D)
@@ -11,6 +12,7 @@ signal boss_defeated(boss_number: int, dropped_key: bool)
 signal boss_warning(seconds_until_spawn: int)
 signal boss_health_updated(current: float, maximum: float, boss_name: String)
 signal all_bosses_defeated()
+signal portal_spawned_signal(portal: Node3D)
 
 # === BOSS SPAWN CONFIG ===
 const BOSS_SPAWN_TIMES = [180, 360, 540, 720]  # 3, 6, 9, 12 minutos em segundos
@@ -41,10 +43,16 @@ var boss_warning_given: Array[bool] = [false, false, false, false]
 var portal: Node3D = null
 var portal_spawned: bool = false
 
+# Referência à arena procedural (opcional)
+var procedural_arena: Node3D = null
+var map_generator: Node3D = null
 
 # Configuração de respawn
 @export var min_enemies: int = 3
 @export var respawn_delay: float = 2.0
+
+# Boss spawn points (para arenas procedurais - um por boss)
+var boss_arena_spawn_points: Array[Node3D] = []
 
 func _ready() -> void:
 	# Carrega as cenas de inimigos
@@ -114,8 +122,44 @@ func register_spawn_point(point: Node3D) -> void:
 
 
 func register_boss_spawn_point(point: Node3D) -> void:
-	"""Registra o ponto de spawn do boss"""
+	"""Registra o ponto de spawn do boss principal"""
 	boss_spawn_point = point
+
+
+func register_boss_arena_spawn_point(point: Node3D, arena_index: int = -1) -> void:
+	"""Registra um spawn point de boss arena específico"""
+	if arena_index >= 0:
+		# Garante que o array tem tamanho suficiente
+		while boss_arena_spawn_points.size() <= arena_index:
+			boss_arena_spawn_points.append(null)
+		boss_arena_spawn_points[arena_index] = point
+	else:
+		boss_arena_spawn_points.append(point)
+
+
+func set_procedural_arena(arena: Node3D) -> void:
+	"""Define referência à arena procedural"""
+	procedural_arena = arena
+	if procedural_arena.has_method("get_node"):
+		map_generator = procedural_arena.get_node_or_null("MapGenerator")
+
+
+func get_boss_spawn_position(boss_index: int) -> Vector3:
+	"""Retorna posição de spawn para um boss específico"""
+	# Se tem arena procedural com boss arenas específicas
+	if boss_index < boss_arena_spawn_points.size() and boss_arena_spawn_points[boss_index]:
+		return boss_arena_spawn_points[boss_index].global_position
+
+	# Se tem boss spawn point principal
+	if boss_spawn_point:
+		return boss_spawn_point.global_position
+
+	# Se tem map_generator, usa a arena de boss correspondente
+	if map_generator and map_generator.has_method("get_boss_arena_position"):
+		return map_generator.get_boss_arena_position(boss_index)
+
+	# Fallback
+	return Vector3(0, 1, 15)
 
 
 func unregister_spawn_point(point: Node3D) -> void:
@@ -210,10 +254,8 @@ func spawn_boss(boss_index: int) -> void:
 	# Instancia o boss
 	var boss = boss_scenes[boss_index].instantiate()
 
-	# Posição do boss
-	var spawn_pos = Vector3(0, 1, 15)  # Posição padrão
-	if boss_spawn_point:
-		spawn_pos = boss_spawn_point.global_position
+	# Posição do boss - usa arena específica se disponível
+	var spawn_pos = get_boss_spawn_position(boss_index)
 
 	# Adiciona à cena
 	get_tree().current_scene.add_child(boss)
@@ -269,8 +311,14 @@ func _spawn_portal() -> void:
 
 	portal = portal_scene.instantiate()
 
-	# Posição do portal (pode ser configurada)
-	var portal_pos = Vector3(0, 0, -15)  # Lado oposto do boss
+	# Posição do portal - usa arena procedural se disponível
+	var portal_pos = Vector3(0, 0, -15)  # Posição padrão
+
+	# Se tem arena procedural, usa posição definida lá
+	if procedural_arena and procedural_arena.has_method("get_portal_spawn_position"):
+		portal_pos = procedural_arena.get_portal_spawn_position()
+	elif map_generator and "portal_position" in map_generator:
+		portal_pos = map_generator.portal_position
 
 	get_tree().current_scene.add_child(portal)
 	portal.global_position = portal_pos
@@ -280,6 +328,7 @@ func _spawn_portal() -> void:
 		portal.activate()
 
 	portal_spawned = true
+	portal_spawned_signal.emit(portal)
 
 
 func _input(event: InputEvent) -> void:
@@ -310,8 +359,42 @@ func clear_all_enemies() -> void:
 	"""Remove todos os inimigos da cena"""
 	var enemies = get_tree().get_nodes_in_group("enemies")
 	for enemy in enemies:
-		enemy.queue_free()
+		if is_instance_valid(enemy):
+			enemy.queue_free()
 	enemies_alive = 0
+
+
+func reset_spawn_manager() -> void:
+	"""Reseta o SpawnManager para estado inicial (usado ao regenerar arena)"""
+	# Limpa inimigos
+	clear_all_enemies()
+
+	# Limpa spawn points
+	spawn_points.clear()
+	boss_spawn_point = null
+	boss_arena_spawn_points.clear()
+
+	# Reseta estado de bosses
+	bosses_spawned = 0
+	current_boss = null
+	boss_active = false
+	boss_warning_given = [false, false, false, false]
+
+	# Remove portal se existir
+	if portal and is_instance_valid(portal):
+		portal.queue_free()
+	portal = null
+	portal_spawned = false
+
+	# Limpa referências procedurais
+	procedural_arena = null
+	map_generator = null
+
+	# Reseta estado de spawn
+	enemies_alive = 0
+	spawn_paused = false
+
+	print("[SpawnManager] Reset completo")
 
 
 func _on_enemy_died() -> void:
