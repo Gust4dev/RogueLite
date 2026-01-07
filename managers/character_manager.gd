@@ -95,7 +95,7 @@ func _init_characters() -> void:
 			"magazine": 6,
 			"dps": 80
 		},
-		"unlocked": false,
+		"unlocked": true,  # TEMP: Desbloqueado para testes
 		"unlock_condition": "Kill 100 enemies",
 		"unlock_stat": "total_kills",
 		"unlock_value": 100,
@@ -116,7 +116,7 @@ func _init_characters() -> void:
 			"magazine": 5,
 			"dps": 66
 		},
-		"unlocked": false,
+		"unlocked": true,  # TEMP: Desbloqueado para testes
 		"unlock_condition": "Kill a boss without taking damage",
 		"unlock_stat": "boss_flawless",
 		"unlock_value": 1,
@@ -137,7 +137,7 @@ func _init_characters() -> void:
 			"magazine": 100,
 			"dps": 120
 		},
-		"unlocked": false,
+		"unlocked": true,  # TEMP: Desbloqueado para testes
 		"unlock_condition": "Complete a run with all other characters",
 		"unlock_stat": "characters_completed",
 		"unlock_value": 5,

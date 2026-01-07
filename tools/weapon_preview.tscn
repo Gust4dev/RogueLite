@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://cakjfut8h18r7"]
 
 [ext_resource type="Script" uid="uid://bitnns46gfh87" path="res://tools/weapon_preview_tool.gd" id="1_preview"]
-[ext_resource type="PackedScene" uid="uid://dbrmkwh77k78t" path="res://assets/weapons/Shotgun/shotgun_animated.glb" id="2_ckpha"]
+[ext_resource type="PackedScene" uid="uid://bancuqcnxv7yo" path="res://assets/weapons/Sniper/sniper_animated.glb" id="2_ckpha"]
 
 [node name="WeaponPreview" type="Node3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -47.196594, 0)
@@ -9,7 +9,7 @@ script = ExtResource("1_preview")
 weapon_position = Vector3(-31.305, -28.92, -28.48)
 weapon_rotation = Vector3(0, 0, 180)
 weapon_scale = Vector3(0.02, 0.02, 0.02)
-selected_weapon = "Shotgun"
+selected_weapon = "Sniper"
 
 [node name="PreviewCamera" type="Camera3D" parent="."]
 fov = 90.0

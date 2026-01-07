@@ -79,9 +79,10 @@ func setup(parent_weapon: Node3D) -> void:
 	# Try to find existing mesh parts in the weapon
 	_detect_weapon_parts()
 
-	# Create placeholder parts if none found
-	if not _has_any_parts():
-		_create_placeholder_parts()
+	# NOTE: Placeholder parts desabilitados - causavam geometria extra na tela
+	# Se precisar de placeholder parts no futuro, criar uma variável de config
+	# if not _has_any_parts():
+	#     _create_placeholder_parts()
 
 
 func _setup_part_containers() -> void:

@@ -464,6 +464,11 @@ func _create_upgrade_ui() -> void:
 	if ResourceLoader.exists("res://ui/upgrade_screen.tscn"):
 		var ui_scene = load("res://ui/upgrade_screen.tscn")
 		upgrade_ui = ui_scene.instantiate()
+		
+		# IMPORTANTE: Define process_mode ANTES de adicionar à árvore
+		# Isso garante que a UI funcione mesmo quando o jogo está pausado
+		upgrade_ui.process_mode = Node.PROCESS_MODE_ALWAYS
+		
 		get_tree().current_scene.add_child(upgrade_ui)
 
 		# Conecta signals
@@ -472,6 +477,7 @@ func _create_upgrade_ui() -> void:
 	else:
 		# Cria UI básica se não houver cena
 		upgrade_ui = _create_basic_upgrade_ui()
+		upgrade_ui.process_mode = Node.PROCESS_MODE_ALWAYS
 		get_tree().current_scene.add_child(upgrade_ui)
 
 

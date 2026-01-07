@@ -42,6 +42,10 @@ signal hit_enemy(enemy: Node3D, damage: float, is_kill: bool)
 @export var mouse_sway_max: Vector2 = Vector2(0.05, 0.03)
 @export var movement_sway_amount: float = 0.02
 
+# === DEBUG / SETUP ===
+@export_group("Debug")
+@export var use_auto_calibration: bool = false # Default false para não quebrar setups manuais
+
 # Ammo
 var current_ammo: int = 12
 
@@ -117,6 +121,11 @@ func _ready() -> void:
 	# Buscar AnimationPlayer dentro do mesh (GLBs importados geralmente têm um)
 	if mesh:
 		animation_player = mesh.find_child("AnimationPlayer", true, false)
+		
+		# Auto-calibra apenas se solicitado
+		if use_auto_calibration:
+			_auto_calibrate_mesh()
+			
 		# Debug: log mesh info para ajudar no posicionamento
 		_log_mesh_debug_info()
 
@@ -477,7 +486,16 @@ func _log_mesh_debug_info() -> void:
 	"""Loga informações sobre o mesh para ajudar no posicionamento"""
 	if not mesh:
 		return
-		
+	
+	print("\n=== [%s] WEAPON MESH DEBUG INFO ===" % name)
+	print("  Mesh Node Name: ", mesh.name)
+	print("  Mesh Transform:")
+	print("    - Position: Vector3(%.4f, %.4f, %.4f)" % [mesh.position.x, mesh.position.y, mesh.position.z])
+	print("    - Rotation (deg): Vector3(%.1f, %.1f, %.1f)" % [rad_to_deg(mesh.rotation.x), rad_to_deg(mesh.rotation.y), rad_to_deg(mesh.rotation.z)])
+	print("    - Scale: Vector3(%.4f, %.4f, %.4f)" % [mesh.scale.x, mesh.scale.y, mesh.scale.z])
+	print("  Mesh Global Transform:")
+	print("    - Global Position: ", mesh.global_position)
+	
 	var mesh_node: MeshInstance3D = null
 	
 	# Procura por MeshInstance3D recursivamente
@@ -490,15 +508,17 @@ func _log_mesh_debug_info() -> void:
 			
 	if mesh_node:
 		var aabb: AABB = mesh_node.get_aabb()
-		var size = aabb.size * mesh_node.scale
-		print("[%s] Mesh Info:" % name)
-		print("  - Global Position: ", mesh_node.global_position)
-		print("  - Local Position: ", mesh_node.position)
-		print("  - AABB Size (scaled): ", size)
-		print("  - Mesh Name: ", mesh_node.name)
-	else:
-		# Pode ser um SkinnedMesh (ImporterMeshInstance3D) ou apenas Nodes
-		print("[%s] MeshInstance3D não encontrada no modelo. Verifique a estrutura." % name)
+		var size = aabb.size
+		print("  First MeshInstance3D: ", mesh_node.name)
+		print("    - AABB Size (unscaled): Vector3(%.2f, %.2f, %.2f)" % [size.x, size.y, size.z])
+		print("    - AABB Center: ", aabb.get_center())
+	
+	# Busca AnimationPlayer
+	if animation_player:
+		var anims = animation_player.get_animation_list()
+		print("  Animations (%d): %s" % [anims.size(), anims])
+	
+	print("=== END WEAPON DEBUG ===\n")
 
 
 func _notify_upgrade_manager() -> void:
@@ -510,3 +530,55 @@ func _notify_upgrade_manager() -> void:
 func get_weapon_type() -> String:
 	"""Returns the weapon type identifier - override in subclasses"""
 	return "base"
+
+
+func _auto_calibrate_mesh() -> void:
+	"""Auto-calibra o mesh para posição FPS correta baseado no AABB"""
+	if not mesh:
+		return
+	
+	# Configurações alvo para armas FPS (baseado na Pistol que funciona)
+	# A arma deve aparecer no canto inferior direito da tela
+	const TARGET_WEAPON_HEIGHT: float = 0.15  # Altura visual da arma na tela
+	const TARGET_POSITION: Vector3 = Vector3(0.35, -0.25, -0.5)  # Posição padrão FPS
+	
+	# Encontra o primeiro MeshInstance3D para calcular o AABB real
+	var mesh_instance: MeshInstance3D = null
+	if mesh is MeshInstance3D:
+		mesh_instance = mesh
+	else:
+		for child in mesh.find_children("", "MeshInstance3D", true, false):
+			mesh_instance = child
+			break
+	
+	if not mesh_instance:
+		print("[%s] Auto-calibração: MeshInstance3D não encontrada" % name)
+		return
+	
+	# Obtém AABB do mesh
+	var aabb: AABB = mesh_instance.get_aabb()
+	var model_height = aabb.size.y
+	var model_center_y = aabb.get_center().y
+	
+	if model_height <= 0:
+		print("[%s] Auto-calibração: AABB inválida" % name)
+		return
+	
+	# Calcula escala necessária para atingir altura alvo
+	var current_scale = abs(mesh.scale.y)
+	var apparent_height = model_height * current_scale
+	var scale_needed = TARGET_WEAPON_HEIGHT / model_height
+	
+	# Calcula offset Y para compensar o centro do modelo
+	var y_offset = -model_center_y * scale_needed
+	
+	# Aplica escala uniforme (mantém rotação 180° no Y e Z para orientação FPS)
+	mesh.scale = Vector3(scale_needed, scale_needed, scale_needed)
+	
+	# Ajusta rotação para orientação FPS (apontando para frente)
+	mesh.rotation_degrees = Vector3(0, 180, 0)
+	
+	# Define posição com compensação do centro do modelo
+	mesh.position = Vector3(TARGET_POSITION.x, TARGET_POSITION.y + y_offset, TARGET_POSITION.z)
+	
+	print("[%s] Auto-calibrado: scale=%.4f, y_offset=%.4f" % [name, scale_needed, y_offset])

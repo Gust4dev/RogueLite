@@ -275,7 +275,6 @@ func spawn_boss(boss_index: int) -> void:
 func _on_boss_died(boss_number: int, dropped_key: bool) -> void:
 	"""Callback quando um boss morre"""
 	boss_active = false
-	# spawn_paused já é false - não precisa resetar
 	current_boss = null
 
 	# Emite signal
