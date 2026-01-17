@@ -1,0 +1,25 @@
+[gd_scene load_steps=4 format=3 uid="uid://bv3k8npt6xhrs"]
+
+[ext_resource type="Script" path="res://enemies/raptor.gd" id="1_raptor"]
+[ext_resource type="PackedScene" uid="uid://b5sse3vngxsh7" path="res://assets/models/enemy1.glb" id="2_enemy_mesh"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
+radius = 0.4
+height = 1.2
+
+[node name="Raptor" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 5
+script = ExtResource("1_raptor")
+mesh_scale = 0.006
+mesh_y_offset = 2.0
+
+[node name="EnemyMesh" parent="." instance=ExtResource("2_enemy_mesh")]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+shape = SubResource("CapsuleShape3D_1")
+
+[node name="NavigationAgent3D" type="NavigationAgent3D" parent="."]
+path_desired_distance = 0.5
+target_desired_distance = 0.5
