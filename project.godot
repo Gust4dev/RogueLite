@@ -23,6 +23,8 @@ AudioManager="*res://managers/audio_manager.gd"
 UpgradeManager="*res://managers/upgrade_manager.gd"
 XPManager="*res://managers/xp_manager.gd"
 CharacterManager="*res://managers/character_manager.gd"
+MoneyManager="*res://managers/money_manager.gd"
+ShopManager="*res://managers/shop_manager.gd"
 
 [display]
 

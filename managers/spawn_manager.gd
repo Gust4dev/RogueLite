@@ -32,6 +32,7 @@ var key_scene: PackedScene
 var enemies_alive: int = 0
 var max_enemies: int = 20
 var spawn_paused: bool = false  # Pausa spawn durante boss fight
+var total_kills: int = 0  # Total de inimigos mortos na run
 
 # Controle de bosses
 var bosses_spawned: int = 0
@@ -392,6 +393,7 @@ func reset_spawn_manager() -> void:
 	# Reseta estado de spawn
 	enemies_alive = 0
 	spawn_paused = false
+	total_kills = 0
 
 	print("[SpawnManager] Reset completo")
 
@@ -399,6 +401,7 @@ func reset_spawn_manager() -> void:
 func _on_enemy_died() -> void:
 	"""Callback quando um inimigo morre"""
 	enemies_alive = max(0, enemies_alive - 1)
+	total_kills += 1
 	
 	# Agenda respawn se abaixo do mínimo
 	if enemies_alive < min_enemies:

@@ -6,14 +6,21 @@
 
 [node name="Sniper" type="Node3D"]
 script = ExtResource("1_sniper")
+viewmodel_position = Vector3(0.5, -0.4, -0.8) # Posição mais próxima e segura
+viewmodel_rotation = Vector3(0, 0, 0)
+viewmodel_scale = Vector3(0.1, 0.1, 0.1) # Reduzindo para 10% do tamanho (era gigante)
+use_viewmodel_calibration = true
 
 [node name="SniperMesh" parent="." instance=ExtResource("3_sniper_mesh")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.25, -0.25, -0.8)
 
 [node name="RayCast3D" type="RayCast3D" parent="."]
-target_position = Vector3(0, 0, -100)
+target_position = Vector3(0, 0, -200)
 collision_mask = 6
 collide_with_areas = true
+collide_with_bodies = true
+enabled = true
+exclude_parent = true
 
 [node name="MuzzleFlash" parent="." instance=ExtResource("2_muzzle")]
 transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.2, -0.12, -1.2)

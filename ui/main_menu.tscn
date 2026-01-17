@@ -1,7 +1,50 @@
 [gd_scene load_steps=3 format=3 uid="uid://cyc8taatq1lyu"]
 
 [ext_resource type="Script" path="res://ui/main_menu.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://ccharselect1234" path="res://ui/character_select.tscn" id="2_charselect"]
+[ext_resource type="PackedScene" path="res://ui/character_select.tscn" id="2_charselect"]
+[ext_resource type="Texture2D" path="res://assets/ui/main_menu/game_logo.png" id="4_logo"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_logo_frame"]
+bg_color = Color(0, 0, 0, 0.5)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.3)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+expand_margin_left = 10.0
+expand_margin_top = 10.0
+expand_margin_right = 10.0
+expand_margin_bottom = 10.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hover"]
+bg_color = Color(1, 1, 1, 0.0392157)
+draw_center = true
+border_width_left = 3
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.6)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+expand_margin_left = 15.0
+expand_margin_right = 30.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pressed"]
+bg_color = Color(1, 1, 1, 0.1)
+draw_center = true
+border_width_left = 4
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.9)
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -12,89 +55,130 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.08, 0.08, 0.12, 1)
+expand_mode = 1
+stretch_mode = 6
 
-[node name="Title" type="Label" parent="."]
+[node name="Vignette" type="ColorRect" parent="."]
 layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -250.0
-offset_top = 100.0
-offset_right = 250.0
-offset_bottom = 180.0
-grow_horizontal = 2
-text = "FPS ROGUELITE"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Subtitle" type="Label" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -200.0
-offset_top = 180.0
-offset_right = 200.0
-offset_bottom = 210.0
-grow_horizontal = 2
-text = "Phase 3 - Weapon Variety"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -100.0
-offset_top = -75.0
-offset_right = 100.0
-offset_bottom = 75.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 20
+color = Color(0, 0, 0, 0.35)
 
-[node name="PlayButton" type="Button" parent="VBoxContainer"]
-custom_minimum_size = Vector2(200, 50)
-layout_mode = 2
-text = "PLAY"
+[node name="MenuContainer" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 126.0
+offset_top = -68.0
+offset_right = 500.0
+offset_bottom = 268.0
+grow_vertical = 2
+theme_override_constants/separation = 15
+alignment = 1
 
-[node name="OptionsButton" type="Button" parent="VBoxContainer"]
-custom_minimum_size = Vector2(200, 50)
+[node name="LogoPanel" type="PanelContainer" parent="MenuContainer"]
 layout_mode = 2
-text = "OPTIONS"
+theme_override_styles/panel = SubResource("StyleBoxFlat_logo_frame")
 
-[node name="QuitButton" type="Button" parent="VBoxContainer"]
-custom_minimum_size = Vector2(200, 50)
+[node name="Logo" type="TextureRect" parent="MenuContainer/LogoPanel"]
+custom_minimum_size = Vector2(250, 150)
 layout_mode = 2
-text = "QUIT"
+texture = ExtResource("4_logo")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Spacer" type="Control" parent="MenuContainer"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+
+[node name="PlayButton" type="Button" parent="MenuContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 50)
+layout_mode = 2
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 32
+theme_override_styles/focus = SubResource("StyleBoxFlat_hover")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_pressed")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_normal")
+text = "JOGAR"
+alignment = 0
+
+[node name="CreditsButton" type="Button" parent="MenuContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_colors/font_disabled_color = Color(1, 1, 1, 0.3)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_hover")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_pressed")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_normal")
+text = "CREDITOS"
+alignment = 0
+
+[node name="OptionsButton" type="Button" parent="MenuContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/focus = SubResource("StyleBoxFlat_hover")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_pressed")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_normal")
+text = "OPCOES"
+alignment = 0
+
+[node name="QuitButton" type="Button" parent="MenuContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 45)
+layout_mode = 2
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(1, 1, 1, 1)
+theme_override_colors/font_color = Color(0.85, 0.85, 0.85, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/focus = SubResource("StyleBoxFlat_hover")
+theme_override_styles/hover = SubResource("StyleBoxFlat_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_pressed")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_normal")
+text = "SAIR"
+alignment = 0
+
+	[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 31.0
+offset_top = -43.0
+offset_right = 166.0
+offset_bottom = -20.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.4)
+theme_override_font_sizes/font_size = 14
+text = "v0.3.5 - Early Access"
 
 [node name="CharacterSelect" parent="." instance=ExtResource("2_charselect")]
 visible = false
-
-[node name="VersionLabel" type="Label" parent="."]
 layout_mode = 1
-anchors_preset = 3
-anchor_left = 1.0
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = -150.0
-offset_top = -30.0
-offset_right = -10.0
-offset_bottom = -10.0
-grow_horizontal = 0
-grow_vertical = 0
-text = "v0.3.0 - Weapon Variety"
-horizontal_alignment = 2
-vertical_alignment = 2

@@ -41,6 +41,7 @@ func _init_characters() -> void:
 		"unlocked": true,
 		"unlock_condition": "Starting character",
 		"portrait_color": Color(0.2, 0.5, 0.8),  # Azul
+		"portrait_path": "res://assets/ui/character_select/portrait_soldier.png",
 		"special_ability": "None"
 	}
 
@@ -60,6 +61,7 @@ func _init_characters() -> void:
 		"unlocked": true,
 		"unlock_condition": "Starting character",
 		"portrait_color": Color(0.6, 0.3, 0.1),  # Marrom
+		"portrait_path": "res://assets/ui/character_select/portrait_gunslinger.png",
 		"special_ability": "Critical hits deal 2.5x damage"
 	}
 
@@ -68,7 +70,7 @@ func _init_characters() -> void:
 		"id": "commando",
 		"name": "Commando",
 		"description": "Spray and pray! High rate of fire, lower damage.",
-		"weapon_scene": "res://weapons/smg/smg.tscn",
+		"weapon_scene": "res://assets/weapons/SMG/new_smg.tscn",
 		"weapon_name": "SMG",
 		"stats": {
 			"damage": 7,
@@ -79,6 +81,7 @@ func _init_characters() -> void:
 		"unlocked": true,
 		"unlock_condition": "Starting character",
 		"portrait_color": Color(0.3, 0.6, 0.3),  # Verde
+		"portrait_path": "res://assets/ui/character_select/portrait_engineer.png", # Fallback for Commando
 		"special_ability": "Spread decreases as you fire"
 	}
 
@@ -87,7 +90,7 @@ func _init_characters() -> void:
 		"id": "hunter",
 		"name": "Hunter",
 		"description": "Devastating at close range. 8 pellets per shot.",
-		"weapon_scene": "res://weapons/shotgun/shotgun.tscn",
+		"weapon_scene": "res://assets/weapons/Shotgun/new_shotgun.tscn",
 		"weapon_name": "Shotgun",
 		"stats": {
 			"damage": 64,  # 8 pellets x 8 dmg
@@ -100,6 +103,7 @@ func _init_characters() -> void:
 		"unlock_stat": "total_kills",
 		"unlock_value": 100,
 		"portrait_color": Color(0.7, 0.4, 0.2),  # Laranja
+		"portrait_path": "res://assets/ui/character_select/portrait_engineer.png", # Fallback/Duplicate
 		"special_ability": "Damage falloff at range"
 	}
 
@@ -121,6 +125,7 @@ func _init_characters() -> void:
 		"unlock_stat": "boss_flawless",
 		"unlock_value": 1,
 		"portrait_color": Color(0.4, 0.4, 0.5),  # Cinza
+		"portrait_path": "res://assets/ui/character_select/portrait_sniper.png",
 		"special_ability": "Right-click to scope, headshots deal 2x damage"
 	}
 
@@ -142,6 +147,7 @@ func _init_characters() -> void:
 		"unlock_stat": "characters_completed",
 		"unlock_value": 5,
 		"portrait_color": Color(0.5, 0.2, 0.2),  # Vermelho escuro
+		"portrait_path": "res://assets/ui/character_select/portrait_tank.png", # Map Heavy to Tank
 		"special_ability": "Spinup time, overheat mechanic, slows movement"
 	}
 

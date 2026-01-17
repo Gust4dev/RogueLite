@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://inspector123"]
+
+[ext_resource type="Script" path="res://debug_model_inspector.gd" id="1_script"]
+
+[node name="Inspector" type="Node"]
+script = ExtResource("1_script")

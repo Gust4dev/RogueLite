@@ -6,6 +6,7 @@
 
 [node name="Pistol" type="Node3D"]
 script = ExtResource("1_pistol")
+viewmodel_rotation = Vector3(0, 0, 0)
 
 [node name="PistolMesh" parent="." instance=ExtResource("3_pistol_mesh")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.014167428, -5.0516505, 0.11693382)

@@ -29,6 +29,9 @@ func _ready() -> void:
 	
 	body_entered.connect(_on_body_entered)
 	
+	# Adiciona ao grupo para o upgrade Ímã de XP
+	add_to_group("xp_orbs")
+	
 	# Aleatoriza offset da flutuação
 	float_offset = randf() * TAU
 
@@ -110,15 +113,19 @@ func _check_and_attract(delta: float) -> void:
 	
 	var distance = global_position.distance_to(target.global_position)
 	
+	var current_range = attraction_range
+	if ShopManager:
+		current_range *= ShopManager.get_magnetism_multiplier()
+	
 	# Inicia atração quando entra no range
-	if distance < attraction_range:
+	if distance < current_range:
 		is_attracted = true
 	
 	if is_attracted:
 		var direction = (target.global_position - global_position).normalized()
 		
 		# Velocidade aumenta conforme fica mais perto
-		var speed_factor = 1.0 + (attraction_range - distance) / attraction_range
+		var speed_factor = 1.0 + (current_range - distance) / current_range
 		var speed = min(attraction_speed * speed_factor, max_speed)
 		
 		global_position += direction * speed * delta
@@ -180,3 +187,10 @@ func set_xp_value(value: int) -> void:
 	
 	if mesh_instance:
 		mesh_instance.scale = Vector3.ONE * scale_factor
+
+
+## Força atração instantânea (para upgrade Ímã de XP)
+func force_attract() -> void:
+	is_attracted = true
+	attraction_speed = 50.0
+	max_speed = 80.0

@@ -17,7 +17,7 @@ class_name WeaponPreviewTool
 
 # === CONFIGURAÇÕES DE POSIÇÃO FPS ===
 @export_group("FPS Position")
-@export var weapon_position: Vector3 = Vector3(0.3, -0.3, -0.5):
+@export var weapon_position: Vector3 = Vector3(0.3, -0.76, -0.17):
 	set(value):
 		weapon_position = value
 		_update_weapon_transform()
@@ -59,8 +59,8 @@ class_name WeaponPreviewTool
 var weapon_scenes = {
 	"Pistol": "res://weapons/pistol/pistol.tscn",
 	"Revolver": "res://weapons/revolver/revolver.tscn",
-	"SMG": "res://weapons/smg/smg.tscn",
-	"Shotgun": "res://weapons/shotgun/shotgun.tscn",
+	"SMG": "res://assets/weapons/SMG/new_smg.tscn",
+	"Shotgun": "res://assets/weapons/Shotgun/new_shotgun.tscn",
 	"Sniper": "res://weapons/sniper/sniper.tscn",
 	"LMG": "res://weapons/lmg/lmg.tscn"
 }
@@ -124,17 +124,10 @@ func _load_selected_weapon() -> void:
 		if child is Node3D and not child is Camera3D:
 			child.free()
 	
-	var path = ""
-	match selected_weapon:
-		"Pistol": path = "res://assets/weapons/Pistol/p9_manny_fps_animations.glb"
-		"Revolver": path = "res://assets/weapons/Revolver/revolver_animated.glb"
-		"SMG": path = "res://assets/weapons/SMG/animated_mp5.glb"
-		"Shotgun": path = "res://assets/weapons/Shotgun/shotgun_animated.glb"
-		"Sniper": path = "res://assets/weapons/Sniper/sniper_animated.glb"
-		"LMG": path = "res://assets/weapons/LMG/minigun_animated.glb"
+	var path = weapon_scenes.get(selected_weapon, "")
 	
 	if path == "" or not ResourceLoader.exists(path):
-		printerr("[Preview] Erro: Modelo não encontrado em ", path)
+		printerr("[Preview] Erro: Cena não encontrada em ", path)
 		return
 		
 	var scene = load(path)
@@ -143,7 +136,13 @@ func _load_selected_weapon() -> void:
 		add_child(_weapon_mesh)
 		_weapon_mesh.owner = self
 		print("[Preview] Carregada: ", selected_weapon)
-		_play_idle_animation()
+		
+		# Tenta aplicar transforms salvos na cena se eles existirem (viewmodel_group)
+		if _weapon_mesh.get("viewmodel_position"):
+			weapon_position = _weapon_mesh.viewmodel_position
+			weapon_rotation = _weapon_mesh.viewmodel_rotation
+			weapon_scale = _weapon_mesh.viewmodel_scale
+		
 		_update_weapon_transform()
 
 

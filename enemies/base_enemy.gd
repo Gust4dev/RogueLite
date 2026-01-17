@@ -18,6 +18,12 @@ signal attack_performed()
 @export var attack_cooldown: float = 1.5
 @export var xp_reward: int = 10  # XP dropado ao morrer
 
+# === SEPARATION BEHAVIOR ===
+@export_group("Separation")
+@export var separation_radius: float = 2.0       # Raio de detecção de outros inimigos
+@export var separation_strength: float = 4.0    # Força de repulsão
+@export var max_separation_force: float = 3.0   # Limite da força
+
 # Estado
 var current_health: float = 50.0
 var _is_alive: bool = true
@@ -38,6 +44,11 @@ var attack_timer: float = 0.0
 
 # Gravidade
 var gravity: float = 9.8
+
+# Separation cache (atualiza periodicamente para performance)
+var nearby_enemies: Array[Node3D] = []
+var nearby_update_timer: float = 0.0
+const NEARBY_UPDATE_INTERVAL: float = 0.2  # Atualiza a cada 200ms
 
 func _ready() -> void:
 	# Inicializa health
@@ -92,6 +103,12 @@ func _physics_process(delta: float) -> void:
 		attack_timer -= delta
 		if attack_timer <= 0:
 			can_attack = true
+	
+	# Atualiza cache de inimigos próximos (performance)
+	nearby_update_timer -= delta
+	if nearby_update_timer <= 0:
+		_update_nearby_enemies()
+		nearby_update_timer = NEARBY_UPDATE_INTERVAL
 
 	# Se não tem target, não faz nada
 	if not target:
@@ -118,6 +135,9 @@ func _physics_process(delta: float) -> void:
 	else:
 		# Se está longe, segue o player usando navegação
 		_navigate_to_target()
+	
+	# Aplica força de separação para evitar ficar grudado com outros inimigos
+	_apply_separation_force()
 
 	# Atualiza movimento
 	move_and_slide()
@@ -164,6 +184,56 @@ func _navigate_to_target() -> void:
 		look_target.y = global_position.y
 		if global_position.distance_to(look_target) > 0.1:
 			look_at(look_target)
+
+
+func _update_nearby_enemies() -> void:
+	"""Atualiza cache de inimigos próximos para separation"""
+	nearby_enemies.clear()
+	
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if enemy == self:
+			continue
+		if not is_instance_valid(enemy):
+			continue
+		
+		var dist = global_position.distance_to(enemy.global_position)
+		if dist < separation_radius:
+			nearby_enemies.append(enemy)
+
+
+func _apply_separation_force() -> void:
+	"""Aplica força de separação para evitar agrupar com outros inimigos"""
+	if nearby_enemies.is_empty():
+		return
+	
+	var separation_velocity = Vector3.ZERO
+	
+	for enemy in nearby_enemies:
+		if not is_instance_valid(enemy):
+			continue
+		
+		var to_self = global_position - enemy.global_position
+		var dist = to_self.length()
+		
+		if dist < 0.01:
+			# Inimigos no mesmo lugar - empurra em direção aleatória
+			to_self = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
+			dist = 0.1
+		
+		# Força inversamente proporcional à distância
+		var force_magnitude = separation_strength * (1.0 - (dist / separation_radius))
+		force_magnitude = clampf(force_magnitude, 0.0, max_separation_force)
+		
+		separation_velocity += to_self.normalized() * force_magnitude
+	
+	# Limita força total
+	if separation_velocity.length() > max_separation_force:
+		separation_velocity = separation_velocity.normalized() * max_separation_force
+	
+	# Aplica à velocidade horizontal
+	velocity.x += separation_velocity.x
+	velocity.z += separation_velocity.z
 
 func take_damage(amount: float) -> void:
 	"""Aplica dano ao inimigo"""
@@ -225,7 +295,11 @@ func attack() -> void:
 
 	# Aplica dano ao player se ele tem o método take_damage
 	if target and target.has_method("take_damage"):
-		target.take_damage(damage)
+		# Aplica multiplicador de dificuldade ao dano
+		var actual_damage = damage
+		if GameManager:
+			actual_damage = damage * GameManager.get_damage_multiplier()
+		target.take_damage(actual_damage)
 
 	attack_performed.emit()
 
@@ -399,3 +473,40 @@ func _drop_xp() -> void:
 		
 		get_tree().current_scene.add_child(orb)
 		orb.global_position = global_position + offset
+	
+	# Dropa moedas também
+	_drop_coins()
+
+
+func _drop_coins() -> void:
+	"""Spawna moedas ao morrer"""
+	if not ResourceLoader.exists("res://items/coin.tscn"):
+		return
+	
+	var coin_scene = load("res://items/coin.tscn")
+	
+	# Calcula valor baseado no tempo decorrido
+	var time_elapsed: float = 0.0
+	if GameManager:
+		time_elapsed = 900.0 - float(GameManager.time_remaining)
+	
+	var coin_value = 2 + int(time_elapsed / 60.0 * 0.5)
+	
+	# Spawna 1-2 moedas
+	var coin_count = 1 + (randi() % 2)  # 1 ou 2 moedas
+	var value_per_coin = maxi(1, coin_value / coin_count)
+	
+	for i in range(coin_count):
+		var coin = coin_scene.instantiate()
+		coin.coin_value = value_per_coin
+		
+		# Posição com spread aleatório (diferente do XP)
+		var angle = randf() * TAU
+		var offset = Vector3(
+			cos(angle) * 0.5,
+			0.4,
+			sin(angle) * 0.5
+		)
+		
+		get_tree().current_scene.add_child(coin)
+		coin.global_position = global_position + offset

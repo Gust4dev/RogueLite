@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://weapons/shotgun/shotgun.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://new_shotgun_model" path="res://assets/weapons/Shotgun/shotgun_animated.glb" id="2_model"]
+
+[node name="NewShotgun" type="Node3D"]
+script = ExtResource("1_script")
+viewmodel_position = Vector3(0.3, -0.3, -0.5)
+viewmodel_rotation = Vector3(0, 0, 0)
+viewmodel_scale = Vector3(1, 1, 1)
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="RayCast3D" type="RayCast3D" parent="."]
+target_position = Vector3(0, 0, -50)
+enabled = true
+
+[node name="MuzzleFlash" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, -0.8)

@@ -302,11 +302,32 @@ func _get_or_create_material(mesh: MeshInstance3D) -> StandardMaterial3D:
 # === PARTICLE SYSTEMS ===
 
 func add_particles_to_part(part_type: String, particles: GPUParticles3D) -> void:
-	"""Add a particle system to a part"""
-	var container = _get_part_container(part_type)
-	if container:
-		container.add_child(particles)
+	"""Add a particle system to a part - positions around the weapon mesh"""
+	# Get the actual mesh for this part to position particles correctly
+	var target_mesh = part_meshes.get(part_type)
+	
+	if target_mesh and is_instance_valid(target_mesh):
+		# Add particles as child of the mesh so they follow its position
+		target_mesh.add_child(particles)
+		particles.position = Vector3.ZERO  # Center on mesh
 		part_particles[part_type].append(particles)
+	elif weapon:
+		# Fallback: try to find weapon mesh container and add there
+		var weapon_mesh = _get_weapon_mesh_container()
+		if weapon_mesh:
+			weapon_mesh.add_child(particles)
+			particles.position = Vector3.ZERO
+			part_particles[part_type].append(particles)
+		else:
+			# Last resort: add to weapon root
+			weapon.add_child(particles)
+			part_particles[part_type].append(particles)
+	else:
+		# Fallback to container (may not be ideal but won't crash)
+		var container = _get_part_container(part_type)
+		if container:
+			container.add_child(particles)
+			part_particles[part_type].append(particles)
 
 
 func remove_particles_from_part(part_type: String) -> void:
@@ -318,9 +339,30 @@ func remove_particles_from_part(part_type: String) -> void:
 
 
 func add_ambient_particles(particles: GPUParticles3D) -> void:
-	"""Add ambient particles (not attached to specific part)"""
-	particles_node.add_child(particles)
-	part_particles["ambient"].append(particles)
+	"""Add ambient particles around the weapon"""
+	var weapon_mesh = _get_weapon_mesh_container()
+	if weapon_mesh:
+		weapon_mesh.add_child(particles)
+		particles.position = Vector3.ZERO
+		part_particles["ambient"].append(particles)
+	elif weapon:
+		weapon.add_child(particles)
+		part_particles["ambient"].append(particles)
+	else:
+		particles_node.add_child(particles)
+		part_particles["ambient"].append(particles)
+
+
+func _get_weapon_mesh_container() -> Node3D:
+	"""Get the main weapon mesh container (first Node3D child that contains meshes)"""
+	if not weapon:
+		return null
+	
+	for child in weapon.get_children():
+		if child is Node3D and not (child is RayCast3D or "Muzzle" in child.name or "Recoil" in child.name or "Sway" in child.name or child == self):
+			return child
+	
+	return null
 
 
 func clear_all_particles() -> void:

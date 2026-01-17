@@ -19,14 +19,15 @@ signal spawn_density_changed(new_density: float)
 
 # === CONFIGURAÇÃO DE SPAWN ===
 @export_group("Spawn Configuration")
-@export var base_wave_size: int = 2           # Início calmo
+@export var base_wave_size: int = 3           # Início um pouco mais intenso
 @export var wave_size_increment: float = 1.5  # Aumenta 1.5 por minuto
 @export var max_wave_size: int = 25           # Caos nos minutos finais
-@export var spawn_interval: float = 6.0       # Segundos entre waves (inicial)
-@export var min_spawn_interval: float = 1.5   # Mínimo intervalo (caos total)
-@export var min_spawn_distance: float = 20.0  # Distância mínima do player
-@export var max_spawn_distance: float = 50.0  # Distância máxima do player
+@export var spawn_interval: float = 4.0       # Segundos entre waves (mais rápido)
+@export var min_spawn_interval: float = 1.0   # Mínimo intervalo (caos total)
+@export var min_spawn_distance: float = 15.0  # Distância mínima do player (mais perto!)
+@export var max_spawn_distance: float = 30.0  # Distância máxima do player (mais perto!)
 @export var max_enemies_alive: int = 50       # Mais inimigos simultâneos
+@export var min_distance_between_spawns: float = 2.5  # Distância mínima entre spawns
 
 @export_group("Difficulty Scaling")
 @export var difficulty_scale_rate: float = 0.2  # 20% por minuto (mais agressivo)
@@ -50,6 +51,12 @@ var valid_spawn_positions: Array[Vector3] = []
 var spawn_point_cache: Dictionary = {}  # Cache de pontos válidos por setor
 var last_cache_update: float = 0.0
 const CACHE_UPDATE_INTERVAL: float = 5.0
+
+# === RECENT SPAWNS (para evitar spawn no mesmo lugar) ===
+var recent_spawn_positions: Array[Vector3] = []
+const MAX_RECENT_SPAWNS: int = 30
+const SPAWN_POSITION_COOLDOWN: float = 3.0
+var spawn_position_times: Array[float] = []
 
 # === ENEMY SCENES ===
 var enemy_scenes: Dictionary = {}  # {enemy_type: PackedScene}
@@ -143,6 +150,9 @@ func _process(delta: float) -> void:
 	if is_spawning and not spawn_paused:
 		time_elapsed += delta
 		_update_difficulty()
+		
+		# Limpa spawns antigos
+		_cleanup_old_spawns()
 
 		# Atualiza cache de spawn points periodicamente
 		if time_elapsed - last_cache_update > CACHE_UPDATE_INTERVAL:
@@ -186,6 +196,11 @@ func _spawn_wave() -> void:
 	# Calcula tamanho da wave baseado no tempo
 	var minutes = time_elapsed / 60.0
 	var wave_size = int(base_wave_size + (minutes * wave_size_increment * difficulty_multiplier))
+	
+	# Aplica multiplicador de dificuldade do GameManager
+	if GameManager:
+		wave_size = int(wave_size * GameManager.get_spawn_multiplier())
+	
 	wave_size = mini(wave_size, max_wave_size)
 	wave_size = mini(wave_size, max_enemies_alive - enemies_alive)
 
@@ -263,8 +278,57 @@ func _is_position_valid(pos: Vector3, player_pos: Vector3) -> bool:
 	# Verifica se está fora do campo de visão (opcional, mais caro)
 	if camera and _is_in_camera_view(pos):
 		return false
+	
+	# Verifica distância de spawns recentes
+	if not _is_far_from_recent_spawns(pos):
+		return false
+	
+	# Verifica distância de inimigos existentes
+	if not _is_far_from_existing_enemies(pos):
+		return false
 
 	return true
+
+
+## Verifica se posição está longe de spawns recentes
+func _is_far_from_recent_spawns(pos: Vector3) -> bool:
+	for recent_pos in recent_spawn_positions:
+		if pos.distance_to(recent_pos) < min_distance_between_spawns:
+			return false
+	return true
+
+
+## Verifica se posição está longe de inimigos existentes
+func _is_far_from_existing_enemies(pos: Vector3) -> bool:
+	var enemies = get_tree().get_nodes_in_group("enemies")
+	for enemy in enemies:
+		if is_instance_valid(enemy):
+			if pos.distance_to(enemy.global_position) < min_distance_between_spawns:
+				return false
+	return true
+
+
+## Registra uma posição de spawn recente
+func _register_spawn_position(pos: Vector3) -> void:
+	recent_spawn_positions.append(pos)
+	spawn_position_times.append(time_elapsed)
+	
+	# Limita tamanho do array
+	while recent_spawn_positions.size() > MAX_RECENT_SPAWNS:
+		recent_spawn_positions.pop_front()
+		spawn_position_times.pop_front()
+
+
+## Limpa spawns antigos
+func _cleanup_old_spawns() -> void:
+	var current_time = time_elapsed
+	var i = 0
+	while i < spawn_position_times.size():
+		if current_time - spawn_position_times[i] > SPAWN_POSITION_COOLDOWN:
+			spawn_position_times.remove_at(i)
+			recent_spawn_positions.remove_at(i)
+		else:
+			i += 1
 
 
 ## Verifica se posição está no campo de visão da câmera
@@ -337,6 +401,9 @@ func _spawn_enemy_at(pos: Vector3, enemy_type: String = "zombie") -> Node3D:
 	# Adiciona à cena
 	get_tree().current_scene.add_child(enemy)
 	enemy.global_position = pos
+	
+	# Registra posição de spawn para evitar spawns próximos
+	_register_spawn_position(pos)
 
 	# Conecta sinais
 	if enemy.has_signal("died"):
@@ -351,6 +418,9 @@ func _spawn_enemy_at(pos: Vector3, enemy_type: String = "zombie") -> Node3D:
 ## Callback quando inimigo morre
 func _on_enemy_died() -> void:
 	enemies_alive = maxi(0, enemies_alive - 1)
+	# Incrementa contador global de kills do SpawnManager
+	if SpawnManager:
+		SpawnManager.total_kills += 1
 
 
 ## Atualiza cache de spawn points

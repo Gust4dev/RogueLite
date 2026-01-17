@@ -64,10 +64,11 @@ func _ready() -> void:
 	movement_sway_amount = 0.018
 
 	# Nomes das animações
-	anim_shoot = "Shoot"
-	anim_reload = "Reload"
-	anim_draw = "Draw"
-	anim_idle = "Idle"
+	# Nomes das animações - UPDATED FOR NEW SMG MODEL (KDW)
+	anim_shoot = "Rig|KDW_Shot"
+	anim_reload = "Rig|KDW_Reload_fast" # Opções: "Rig|KDW_Reload_fast", "Rig|KDW_Reload_full"
+	anim_draw = "Rig|KDW_Draw"
+	anim_idle = "Rig|KDW_DPose_Idle"
 
 	# Velocidade das animações
 	anim_speed_shoot = 3.0  # Animação muito rápida

@@ -37,7 +37,11 @@ var camera_effects: CameraEffects = null
 var crosshair_drawer: CrosshairDrawer = null
 
 # === VIGNETTE ===
+# === VIGNETTE ===
 var vignette_drawer: VignetteDrawer = null
+
+# === RADAR ===
+var radar_drawer: Control = null
 
 # === XP SYSTEM ===
 var xp_bar: ProgressBar = null
@@ -61,6 +65,9 @@ var spin_indicator: ProgressBar = null
 # Estado do boss
 var boss_active: bool = false
 
+# === MONEY SYSTEM ===
+var money_label: Label = null
+
 
 func _ready() -> void:
 	# Conecta aos signals do GameManager
@@ -82,6 +89,9 @@ func _ready() -> void:
 
 	# Cria o drawer da vignette
 	_setup_vignette_drawer()
+	
+	# Cria o radar
+	_setup_radar()
 
 	# Esconde boss UI inicialmente
 	if boss_health_container:
@@ -107,6 +117,13 @@ func _ready() -> void:
 	if XPManager:
 		XPManager.xp_changed.connect(_on_xp_changed)
 		XPManager.level_up.connect(_on_level_up)
+	
+	# Configura Money UI
+	_setup_money_ui()
+	
+	# Conecta signals do MoneyManager
+	if MoneyManager:
+		MoneyManager.money_changed.connect(_on_money_changed)
 
 
 func _setup_crosshair_drawer() -> void:
@@ -267,6 +284,46 @@ func _setup_dash_indicators() -> void:
 	stamina_bar.add_theme_stylebox_override("fill", fill)
 
 	stamina_container.add_child(stamina_bar)
+
+
+func _setup_money_ui() -> void:
+	"""Configura display de dinheiro no canto superior direito"""
+	var money_container = HBoxContainer.new()
+	money_container.name = "MoneyContainer"
+	money_container.anchor_left = 0.85
+	money_container.anchor_right = 0.98
+	money_container.anchor_top = 0.02
+	money_container.anchor_bottom = 0.06
+	money_container.add_theme_constant_override("separation", 5)
+	$Control.add_child(money_container)
+	
+	# Ícone de moeda
+	var coin_icon = Label.new()
+	coin_icon.text = "🪙"
+	coin_icon.add_theme_font_size_override("font_size", 24)
+	coin_icon.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	money_container.add_child(coin_icon)
+	
+	# Label do valor
+	money_label = Label.new()
+	money_label.name = "MoneyLabel"
+	money_label.text = "0"
+	money_label.add_theme_font_size_override("font_size", 22)
+	money_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	money_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	money_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	money_container.add_child(money_label)
+
+
+func _on_money_changed(new_amount: int) -> void:
+	"""Callback quando dinheiro muda"""
+	if money_label:
+		money_label.text = str(new_amount)
+		
+		# Pequena animação de pulse
+		var tween = create_tween()
+		tween.tween_property(money_label, "scale", Vector2(1.2, 1.2), 0.1)
+		tween.tween_property(money_label, "scale", Vector2.ONE, 0.1)
 
 
 func _setup_level_up_screen() -> void:
@@ -790,6 +847,29 @@ func _configure_weapon_ui(weapon_type: String) -> void:
 
 
 # === CLASSES INTERNAS PARA DESENHO ===
+
+func _setup_radar() -> void:
+	"""Configura o radar"""
+	var RadarScript = load("res://ui/radar_drawer.gd")
+	if not RadarScript:
+		return
+		
+	radar_drawer = RadarScript.new()
+	$Control.add_child(radar_drawer)
+	
+	# Posiciona no canto inferior direito usando offsets explícitos
+	radar_drawer.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	radar_drawer.grow_horizontal = Control.GROW_DIRECTION_BEGIN # Cresce para a Esquerda
+	radar_drawer.grow_vertical = Control.GROW_DIRECTION_BEGIN   # Cresce para Cima
+	
+	# Margem de 20px da borda, tamanho ~160px
+	radar_drawer.offset_left = -180
+	radar_drawer.offset_top = -180
+	radar_drawer.offset_right = -20
+	radar_drawer.offset_bottom = -20
+	
+	print("[HUD] Radar criado e posicionado.")
+
 
 class CrosshairDrawer extends Control:
 	"""Drawer customizado para crosshair dinâmico e hitmarker"""

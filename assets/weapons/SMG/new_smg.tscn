@@ -1,0 +1,28 @@
+[gd_scene load_steps=5 format=3 uid="uid://dml8evh310qkg"]
+
+[ext_resource type="Script" uid="uid://d4clj5ybrxnlw" path="res://weapons/smg/smg.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://cqipy500notkf" path="res://assets/weapons/SMG/smg_fps_animations.glb" id="2_model"]
+[ext_resource type="PackedScene" uid="uid://ccj3yt7xqw8kv" path="res://vfx/muzzle_flash.tscn" id="4_muzzle"]
+[ext_resource type="Script" uid="uid://bc4cqcyqyjlbs" path="res://assets/weapons/SMG/runtime_anim_debug.gd" id="5_debug"]
+
+[node name="NewSMG" type="Node3D"]
+script = ExtResource("1_script")
+viewmodel_position = Vector3(0.365, -0.895, -0.17)
+viewmodel_rotation = Vector3(0, 182.2, 0)
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="RuntimeDebugger" type="Node" parent="."]
+script = ExtResource("5_debug")
+
+[node name="RayCast3D" type="RayCast3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -1.5)
+target_position = Vector3(0, 0, -100)
+enabled = true
+exclude_parent = true
+collision_mask = 6
+collide_with_areas = true
+collide_with_bodies = true
+
+[node name="MuzzleFlash" parent="." instance=ExtResource("4_muzzle")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -0.8)

@@ -6,6 +6,8 @@
 
 [node name="Revolver" type="Node3D"]
 script = ExtResource("1_revolver")
+viewmodel_rotation = Vector3(0, 0, 0)
+use_viewmodel_calibration = true
 
 [node name="RevolverMesh" parent="." instance=ExtResource("3_revolver_mesh")]
 transform = Transform3D(-0.04, 0, 3.49691e-09, 0, 0.04, 0, -3.49691e-09, 0, -0.04, 0.295, -0.595, -0.935)

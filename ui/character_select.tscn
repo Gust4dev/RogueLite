@@ -1,6 +1,30 @@
-[gd_scene load_steps=2 format=3 uid="uid://cl2tfq8wea2kb"]
+[gd_scene load_steps=6 format=3 uid="uid://cl2tfq8wea2kb"]
 
 [ext_resource type="Script" path="res://ui/character_select.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass_left"]
+bg_color = Color(0.05, 0.05, 0.08, 0.9)
+border_width_right = 2
+border_color = Color(1, 1, 1, 0.1)
+corner_radius_bottom_right = 0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_glass_right"]
+bg_color = Color(0.05, 0.05, 0.08, 0.85)
+border_width_left = 2
+border_color = Color(1, 1, 1, 0.1)
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_portrait_frame"]
+bg_color = Color(0, 0, 0, 0.3)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.6, 0.8, 0.6)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
 
 [node name="CharacterSelect" type="Control"]
 layout_mode = 3
@@ -11,7 +35,18 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="TextureRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="BgColorPlaceholder" type="ColorRect" parent="Background"]
+visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -20,106 +55,162 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.1, 0.1, 0.15, 1)
 
-[node name="Title" type="Label" parent="."]
-layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -200.0
-offset_top = 30.0
-offset_right = 200.0
-offset_bottom = 70.0
-grow_horizontal = 2
-text = "SELECT YOUR CHARACTER"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="Content" type="HBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 80.0
-offset_bottom = -50.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 50
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 50
+theme_override_constants/separation = 0
+
+[node name="ListPanel" type="PanelContainer" parent="Content"]
+custom_minimum_size = Vector2(350, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass_left")
+
+[node name="Margin" type="MarginContainer" parent="Content/ListPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer"]
+[node name="VBox" type="VBoxContainer" parent="Content/ListPanel/Margin"]
 layout_mode = 2
-theme_override_constants/separation = 30
+theme_override_constants/separation = 20
 
-[node name="CharacterList" type="PanelContainer" parent="MarginContainer/HBoxContainer"]
-custom_minimum_size = Vector2(250, 0)
+[node name="ListTitle" type="Label" parent="Content/ListPanel/Margin/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "CLASS SELECT"
+horizontal_alignment = 0
+
+[node name="ScrollContainer" type="ScrollContainer" parent="Content/ListPanel/Margin/VBox"]
 layout_mode = 2
 size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer/CharacterList"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="PreviewPanel" type="Panel" parent="MarginContainer/HBoxContainer"]
+[node name="CharacterList" type="VBoxContainer" parent="Content/ListPanel/Margin/VBox/ScrollContainer"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
+theme_override_constants/separation = 10
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer/PreviewPanel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = 20.0
-offset_right = -20.0
-offset_bottom = -20.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 15
-
-[node name="PortraitRect" type="ColorRect" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 150)
+[node name="DetailPanel" type="PanelContainer" parent="Content"]
 layout_mode = 2
-color = Color(0.3, 0.5, 0.7, 1)
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_glass_right")
 
-[node name="CharacterName" type="Label" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
+[node name="Margin" type="MarginContainer" parent="Content/DetailPanel"]
 layout_mode = 2
-text = "Character Name"
-horizontal_alignment = 1
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 40
+theme_override_constants/margin_bottom = 40
 
-[node name="Description" type="Label" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
+[node name="MainVBox" type="VBoxContainer" parent="Content/DetailPanel/Margin"]
 layout_mode = 2
-text = "Character description goes here."
-autowrap_mode = 2
+theme_override_constants/separation = 20
 
-[node name="HSeparator" type="HSeparator" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
+[node name="Header" type="HBoxContainer" parent="Content/DetailPanel/Margin/MainVBox"]
 layout_mode = 2
 
-[node name="WeaponName" type="Label" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
+[node name="CharacterName" type="Label" parent="Content/DetailPanel/Margin/MainVBox/Header"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "Weapon: Pistol"
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 42
+text = "COMMANDO"
 
-[node name="StatsContainer" type="VBoxContainer" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
+[node name="UnlockCondition" type="Label" parent="Content/DetailPanel/Margin/MainVBox/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.2, 1)
+text = "LOCKED"
+
+[node name="TopSection" type="HBoxContainer" parent="Content/DetailPanel/Margin/MainVBox"]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 40
 
-[node name="SpecialAbility" type="Label" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
+[node name="PortraitContainer" type="PanelContainer" parent="Content/DetailPanel/Margin/MainVBox/TopSection"]
+custom_minimum_size = Vector2(300, 450)
 layout_mode = 2
-text = "Special: None"
+theme_override_styles/panel = SubResource("StyleBoxFlat_portrait_frame")
+
+[node name="PortraitRect" type="TextureRect" parent="Content/DetailPanel/Margin/MainVBox/TopSection/PortraitContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="InfoVBox" type="VBoxContainer" parent="Content/DetailPanel/Margin/MainVBox/TopSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 20
+
+[node name="Description" type="Label" parent="Content/DetailPanel/Margin/MainVBox/TopSection/InfoVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "A balanced soldier with high versatility."
 autowrap_mode = 2
 
-[node name="UnlockCondition" type="Label" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
+[node name="WeaponName" type="Label" parent="Content/DetailPanel/Margin/MainVBox/TopSection/InfoVBox"]
+unique_name_in_owner = true
 layout_mode = 2
-modulate = Color(1, 0.7, 0.3, 1)
-text = "Unlock: Kill 100 enemies"
-autowrap_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.7, 1)
+text = "Weapon: Assault Rifle"
 
-[node name="SelectButton" type="Button" parent="MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer"]
-custom_minimum_size = Vector2(0, 50)
+[node name="SpecialAbility" type="Label" parent="Content/DetailPanel/Margin/MainVBox/TopSection/InfoVBox"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "SELECT"
+text = "Special: Grenade"
+
+[node name="StatsLabel" type="Label" parent="Content/DetailPanel/Margin/MainVBox/TopSection/InfoVBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "STATS"
+
+[node name="StatsContainer" type="VBoxContainer" parent="Content/DetailPanel/Margin/MainVBox/TopSection/InfoVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="BottomBar" type="HBoxContainer" parent="Content/DetailPanel/Margin/MainVBox"]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="DifficultyContainer" type="VBoxContainer" parent="Content/DetailPanel/Margin/MainVBox/BottomBar"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="DifficultyButton" type="Button" parent="Content/DetailPanel/Margin/MainVBox/BottomBar/DifficultyContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 40)
+layout_mode = 2
+text = "DIFFICULTY: NORMAL"
+
+[node name="DifficultyDescLabel" type="RichTextLabel" parent="Content/DetailPanel/Margin/MainVBox/BottomBar/DifficultyContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 40)
+layout_mode = 2
+bbcode_enabled = true
+text = "Standard Experience"
+fit_content = true
+
+[node name="Spacer" type="Control" parent="Content/DetailPanel/Margin/MainVBox/BottomBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SelectButton" type="Button" parent="Content/DetailPanel/Margin/MainVBox/BottomBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 60)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.1, 0.1, 0.1, 1)
+theme_override_font_sizes/font_size = 24
+text = "DEPLOY"
 
 [node name="BackHint" type="Label" parent="."]
 layout_mode = 1
@@ -134,6 +225,5 @@ offset_right = 100.0
 offset_bottom = -10.0
 grow_horizontal = 2
 grow_vertical = 0
-text = "Press ESC to go back"
+text = "ESC to Back"
 horizontal_alignment = 1
-vertical_alignment = 1

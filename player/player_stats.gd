@@ -16,6 +16,11 @@ signal damage_taken(amount: float)
 
 # Estado
 var is_alive: bool = true
+var invulnerability_timer: float = 0.0
+
+func _process(delta: float) -> void:
+	if invulnerability_timer > 0:
+		invulnerability_timer -= delta
 
 func _ready() -> void:
 	current_health = max_health
@@ -26,9 +31,32 @@ func take_damage(amount: float) -> void:
 	if not is_alive:
 		return
 
+	# Verifica invunerabilidade temporária (pós-revive)
+	if invulnerability_timer > 0:
+		return
+
+	# Verifica Escudo de Impacto
+	if ShopManager and ShopManager.use_shield():
+		return
+
 	# Calcula dano reduzido pela armadura
 	var actual_damage = amount * (1.0 - (armor / 100.0))
 	actual_damage = max(1.0, actual_damage)  # Mínimo 1 de dano
+
+	# Tratamento para morte/reviver
+	if current_health - actual_damage <= 0.0:
+		if ShopManager and ShopManager.use_second_chance():
+			current_health = max_health * 0.25
+			invulnerability_timer = 3.0  # 3 segundos de invencibilidade
+			health_changed.emit(current_health, max_health)
+			damage_taken.emit(0) 
+			# Toca som de revive
+			const REVIVE_SOUND = preload("res://assets/audio/revive.mp3")
+			if AudioManager:
+				AudioManager.play_sfx(REVIVE_SOUND)
+				
+			print("[PlayerStats] Segunda Chance! Invencível por 3s")
+			return
 
 	current_health -= actual_damage
 	current_health = max(0.0, current_health)

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://anim_debug_scene"]
+
+[ext_resource type="Script" path="res://debug_anim_tracks.gd" id="1_script"]
+
+[node name="DebugAnim" type="Node"]
+script = ExtResource("1_script")

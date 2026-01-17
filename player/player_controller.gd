@@ -44,6 +44,14 @@ var speed_multiplier: float = 1.0
 var is_scoped: bool = false  # Para sniper
 var is_holding_trigger: bool = false  # Para full auto (SMG/LMG)
 
+# === PAUSE MENU SYSTEM ===
+var pause_menu: PauseMenu = null
+var reset_indicator: ResetHoldIndicator = null
+var game_over_screen: GameOverScreen = null
+var reset_hold_time: float = 0.0
+const RESET_HOLD_DURATION: float = 1.5
+const RESET_HOLD_THRESHOLD: float = 0.2  # Tempo antes de mostrar indicador (para não conflitar com reload)
+
 
 func _ready() -> void:
 	# Captura o mouse
@@ -100,6 +108,15 @@ func _setup_dash_system() -> void:
 	dash_system.dash_started.connect(_on_dash_started)
 	dash_system.dash_ended.connect(_on_dash_ended)
 
+	# Setup pause menu
+	_setup_pause_menu()
+
+	# Setup reset hold indicator
+	_setup_reset_indicator()
+	
+	# Setup game over screen
+	_setup_game_over_screen()
+
 
 func _input(event: InputEvent) -> void:
 	# Mouse look
@@ -131,12 +148,12 @@ func _input(event: InputEvent) -> void:
 		if current_weapon and current_weapon.has_method("add_mouse_sway"):
 			current_weapon.add_mouse_sway(event.relative)
 
-	# ESC para liberar mouse (debug)
+	# ESC para pause menu
 	if event.is_action_pressed("ui_cancel"):
-		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-		else:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		if GameManager.current_state == GameManager.GameState.PLAYING:
+			_open_pause_menu()
+		elif GameManager.current_state == GameManager.GameState.PAUSED:
+			_close_pause_menu()
 
 
 func _physics_process(delta: float) -> void:
@@ -261,8 +278,8 @@ func _process_weapon_input() -> void:
 			if current_weapon.has_method("shoot"):
 				current_weapon.shoot()
 
-	# Reload
-	if Input.is_action_just_pressed("reload"):
+	# Reload - só dispara se não estiver em modo de hold para reset
+	if Input.is_action_just_pressed("reload") and reset_hold_time < RESET_HOLD_THRESHOLD:
 		if current_weapon.has_method("reload"):
 			current_weapon.reload()
 
@@ -387,3 +404,151 @@ func get_speed_multiplier() -> float:
 func is_player_scoped() -> bool:
 	"""Retorna se jogador está usando scope"""
 	return is_scoped
+
+
+# === PAUSE MENU SYSTEM ===
+
+func _setup_pause_menu() -> void:
+	"""Configura o pause menu"""
+	pause_menu = PauseMenu.new()
+	pause_menu.name = "PauseMenu"
+	get_tree().root.add_child.call_deferred(pause_menu)
+	
+	# Conecta signals
+	pause_menu.resume_requested.connect(_on_pause_resume)
+	pause_menu.reset_requested.connect(_on_pause_reset)
+	pause_menu.main_menu_requested.connect(_on_pause_main_menu)
+
+
+func _setup_reset_indicator() -> void:
+	"""Configura o indicador de hold R para reset"""
+	reset_indicator = ResetHoldIndicator.new()
+	reset_indicator.name = "ResetHoldIndicator"
+	get_tree().root.add_child.call_deferred(reset_indicator)
+	
+	# Conecta signal
+	reset_indicator.reset_completed.connect(_on_reset_hold_completed)
+
+
+func _setup_game_over_screen() -> void:
+	"""Configura a tela de game over"""
+	game_over_screen = GameOverScreen.new()
+	game_over_screen.name = "GameOverScreen"
+	get_tree().root.add_child.call_deferred(game_over_screen)
+
+
+func _open_pause_menu() -> void:
+	"""Abre o pause menu"""
+	if not pause_menu:
+		return
+	
+	GameManager.pause_game()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	pause_menu.show_pause_menu()
+
+
+func _close_pause_menu() -> void:
+	"""Fecha o pause menu"""
+	if not pause_menu:
+		return
+	
+	pause_menu.hide_pause_menu()
+	GameManager.resume_game()
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _on_pause_resume() -> void:
+	"""Callback quando Resume é pressionado"""
+	_close_pause_menu()
+
+
+func _on_pause_reset() -> void:
+	"""Callback quando Reset é confirmado no pause menu"""
+	pause_menu.hide_pause_menu()
+	GameManager.reset_run()
+
+
+func _on_pause_main_menu() -> void:
+	"""Callback quando Main Menu é pressionado"""
+	pause_menu.hide_pause_menu()
+	GameManager.reset_game()
+	get_tree().change_scene_to_file("res://ui/main_menu.tscn")
+
+
+func _process(delta: float) -> void:
+	# Processa input de hold R para reset
+	_process_reset_hold_input(delta)
+
+
+func _process_reset_hold_input(delta: float) -> void:
+	"""Processa o hold R para reset da run"""
+	# Não processa em telas especiais ou pausado
+	if _is_in_special_screen():
+		if reset_hold_time > 0:
+			reset_hold_time = 0.0
+			if reset_indicator:
+				reset_indicator.hide_indicator()
+		return
+	
+	# Só processa se estiver jogando
+	if GameManager.current_state != GameManager.GameState.PLAYING:
+		return
+	
+	# Verifica se R está pressionado (mesma tecla do reload)
+	if Input.is_action_pressed("reload"):
+		var was_below_threshold = reset_hold_time < RESET_HOLD_THRESHOLD
+		reset_hold_time += delta
+		
+		# Só mostra indicador após threshold (para não conflitar com reload)
+		if was_below_threshold and reset_hold_time >= RESET_HOLD_THRESHOLD and reset_indicator:
+			reset_indicator.show_indicator()
+		
+		# Atualiza progresso (considerando que o tempo efetivo começa após threshold)
+		if reset_hold_time >= RESET_HOLD_THRESHOLD and reset_indicator:
+			var effective_time = reset_hold_time - RESET_HOLD_THRESHOLD
+			var progress = effective_time / (RESET_HOLD_DURATION - RESET_HOLD_THRESHOLD)
+			reset_indicator.progress = clamp(progress, 0.0, 1.0)
+			reset_indicator.queue_redraw()
+			
+			if progress >= 1.0:
+				_on_reset_hold_completed()
+	else:
+		# Soltou a tecla
+		if reset_hold_time > 0:
+			reset_hold_time = 0.0
+			if reset_indicator:
+				reset_indicator.hide_indicator()
+
+
+func _on_reset_hold_completed() -> void:
+	"""Callback quando o hold R completa"""
+	reset_hold_time = 0.0
+	if reset_indicator:
+		reset_indicator.hide_indicator()
+	GameManager.reset_run()
+
+
+func _is_in_special_screen() -> bool:
+	"""Verifica se está em uma tela especial (upgrade, level up, etc.)"""
+	# Verifica se tela de upgrade está aberta
+	if UpgradeManager and UpgradeManager.upgrade_ui and UpgradeManager.upgrade_ui.visible:
+		return true
+	
+	# Verifica se level up screen está aberta
+	var level_up = get_tree().root.get_node_or_null("LevelUpScreen")
+	if level_up and level_up.visible:
+		return true
+	
+
+	
+	return false
+
+
+func _exit_tree() -> void:
+	"""Limpa elementos de UI adicionados ao root"""
+	if pause_menu:
+		pause_menu.queue_free()
+	if game_over_screen:
+		game_over_screen.queue_free()
+	if reset_indicator:
+		reset_indicator.queue_free()

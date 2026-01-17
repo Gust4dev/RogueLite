@@ -1,3 +1,4 @@
+@tool
 extends Node3D
 
 # Base Weapon - Classe base para todas as armas
@@ -41,6 +42,13 @@ signal hit_enemy(enemy: Node3D, damage: float, is_kill: bool)
 @export var mouse_sway_amount: Vector2 = Vector2(0.002, 0.002)
 @export var mouse_sway_max: Vector2 = Vector2(0.05, 0.03)
 @export var movement_sway_amount: float = 0.02
+
+# === CONFIGURAÇÃO DE VIEWMODEL (POSICIONAMENTO) ===
+@export_group("Viewmodel")
+@export var viewmodel_position: Vector3 = Vector3(0.25, -0.25, -0.5) # Padrão FPS direita inferior
+@export var viewmodel_rotation: Vector3 = Vector3(0, 180, 0) # Rotação padrão (180 no Y geralmente aponta pra frente)
+@export var viewmodel_scale: Vector3 = Vector3(1, 1, 1)
+@export var use_viewmodel_calibration: bool = true # Se true, aplica esses valores no _ready
 
 # === DEBUG / SETUP ===
 @export_group("Debug")
@@ -93,8 +101,21 @@ var weapon_sway: WeaponSway = null
 var original_position: Vector3 = Vector3.ZERO
 var original_rotation: Vector3 = Vector3.ZERO
 
+# Audio
+var sfx_hitmark: AudioStreamPlayer = null
+var sfx_death: AudioStreamPlayer = null
+var sfx_shoot: AudioStreamPlayer = null
+var sfx_reload: AudioStreamPlayer = null
+
+
 
 func _ready() -> void:
+	# Aplica calibração manual do viewmodel se habilitado
+	if use_viewmodel_calibration:
+		position = viewmodel_position
+		rotation_degrees = viewmodel_rotation
+		scale = viewmodel_scale
+
 	# Salva posição original
 	original_position = position
 	original_rotation = rotation
@@ -127,12 +148,25 @@ func _ready() -> void:
 			_auto_calibrate_mesh()
 			
 		# Debug: log mesh info para ajudar no posicionamento
-		_log_mesh_debug_info()
+		# _log_mesh_debug_info()
 
 	# Configura raycast
 	if raycast:
 		raycast.enabled = true
 		raycast.target_position = Vector3(0, 0, -100)
+		raycast.collide_with_areas = true # Garantir hit em Hitboxes
+		raycast.collide_with_bodies = true
+		
+		# Adicionar exceção ao próprio mesh da arma para evitar auto-hit
+		if mesh:
+			# Se o mesh for um Node3D genérico, tenta achar o colisor dentro
+			var collider_node = mesh.find_child("*Collision*", true, false)
+			if collider_node:
+				raycast.add_exception(collider_node)
+			
+			# Tenta adicionar o próprio nó se for colisor
+			if mesh is CollisionObject3D:
+				raycast.add_exception(mesh)
 
 	# Esconde muzzle flash inicialmente
 	if muzzle_flash:
@@ -148,7 +182,41 @@ func _ready() -> void:
 	ammo_changed.emit(current_ammo, magazine_size)
 
 	# Notify UpgradeManager of this weapon (deferred to ensure all systems are ready)
+	# Notify UpgradeManager of this weapon (deferred to ensure all systems are ready)
 	call_deferred("_notify_upgrade_manager")
+	
+	_setup_audio()
+
+func _setup_audio() -> void:
+	# Hitmark
+	if ResourceLoader.exists("res://assets/audio/hitmark.mp3"):
+		sfx_hitmark = AudioStreamPlayer.new()
+		sfx_hitmark.stream = load("res://assets/audio/hitmark.mp3")
+		sfx_hitmark.volume_db = -12.0 # Volume mais baixo
+		sfx_hitmark.bus = "Reference" # Use Reference bus if "SFX" not available, or default
+		add_child(sfx_hitmark)
+		
+	# Death
+	if ResourceLoader.exists("res://assets/audio/death.mp3"):
+		sfx_death = AudioStreamPlayer.new()
+		sfx_death.stream = load("res://assets/audio/death.mp3")
+		sfx_death.volume_db = -10.0 # Volume mais baixo
+		add_child(sfx_death)
+
+	# Shoot (Default Pistol Sound for now)
+	if ResourceLoader.exists("res://assets/weapons/Pistol/shoot.mp3"):
+		sfx_shoot = AudioStreamPlayer.new()
+		sfx_shoot.stream = load("res://assets/weapons/Pistol/shoot.mp3")
+		sfx_shoot.volume_db = -18.0 # MUITO mais baixo como pedido
+		sfx_shoot.pitch_scale = randf_range(0.95, 1.05) # Variação de pitch
+		add_child(sfx_shoot)
+
+	# Reload
+	if ResourceLoader.exists("res://assets/weapons/Pistol/reload.mp3"):
+		sfx_reload = AudioStreamPlayer.new()
+		sfx_reload.stream = load("res://assets/weapons/Pistol/reload.mp3")
+		sfx_reload.volume_db = -2.0 
+		add_child(sfx_reload)
 
 
 func _setup_subsystems() -> void:
@@ -182,6 +250,14 @@ func _setup_subsystems() -> void:
 
 
 func _process(delta: float) -> void:
+	# === EDITOR LOGIC ===
+	if Engine.is_editor_hint():
+		if use_viewmodel_calibration:
+			position = viewmodel_position
+			rotation_degrees = viewmodel_rotation
+			scale = viewmodel_scale
+		return
+
 	# Atualiza fire timer
 	if fire_timer > 0:
 		fire_timer -= delta
@@ -225,6 +301,13 @@ func _find_player_camera() -> void:
 	if parent is Camera3D:
 		player_camera = parent
 		camera_effects = player_camera.get_node_or_null("CameraEffects")
+		
+		# Adiciona o Player (pai da câmera) como exceção do RayCast
+		# para não atirar no próprio pé
+		if raycast:
+			var player_node = player_camera.get_parent()
+			if player_node is CollisionObject3D:
+				raycast.add_exception(player_node)
 
 
 func shoot() -> void:
@@ -256,6 +339,11 @@ func shoot() -> void:
 
 	# Trigger muzzle flash (tem await interno, por isso vem depois)
 	_trigger_muzzle_flash()
+
+	# Toca som de tiro
+	if sfx_shoot:
+		sfx_shoot.pitch_scale = randf_range(0.9, 1.1)
+		sfx_shoot.play()
 
 	# Aplica recoil da arma (visual)
 	_apply_weapon_recoil()
@@ -299,6 +387,12 @@ func _process_raycast() -> void:
 			# Feedback visual de hit
 			if camera_effects:
 				camera_effects.on_hit(is_kill)
+
+			# Feedback sonoro
+			if is_kill:
+				if sfx_death: sfx_death.play()
+			else:
+				if sfx_hitmark: sfx_hitmark.play()
 
 		# Cria impact particles
 		var hit_point = raycast.get_collision_point()
@@ -344,6 +438,10 @@ func reload() -> void:
 
 	# Toca animação de reload
 	_play_animation(anim_reload)
+	
+	# Toca som de reload
+	if sfx_reload:
+		sfx_reload.play()
 
 	# Timer para reload
 	await get_tree().create_timer(reload_time).timeout
@@ -478,8 +576,11 @@ func _play_animation(anim_name: String, custom_speed: float = -1.0) -> void:
 			else:
 				speed = 1.0
 		
+		# print("Playing Animation: ", anim_name, " Speed: ", speed)
 		animation_player.speed_scale = speed
 		animation_player.play(anim_name)
+	else:
+		print("ERROR: Animation not found: ", anim_name, " Available: ", animation_player.get_animation_list())
 
 
 func _log_mesh_debug_info() -> void:
@@ -581,4 +682,4 @@ func _auto_calibrate_mesh() -> void:
 	# Define posição com compensação do centro do modelo
 	mesh.position = Vector3(TARGET_POSITION.x, TARGET_POSITION.y + y_offset, TARGET_POSITION.z)
 	
-	print("[%s] Auto-calibrado: scale=%.4f, y_offset=%.4f" % [name, scale_needed, y_offset])
+	# print("[%s] Auto-calibrado: scale=%.4f, y_offset=%.4f" % [name, scale_needed, y_offset])

@@ -8,16 +8,20 @@ signal character_confirmed(character_id: String)
 signal back_pressed()
 
 # Referências
-@onready var character_list: VBoxContainer = $MarginContainer/HBoxContainer/CharacterList/VBoxContainer
-@onready var preview_panel: Panel = $MarginContainer/HBoxContainer/PreviewPanel
-@onready var character_name: Label = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/CharacterName
-@onready var character_desc: Label = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/Description
-@onready var weapon_name: Label = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/WeaponName
-@onready var stats_container: VBoxContainer = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/StatsContainer
-@onready var special_ability: Label = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/SpecialAbility
-@onready var unlock_label: Label = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/UnlockCondition
-@onready var select_button: Button = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/SelectButton
-@onready var portrait_rect: ColorRect = $MarginContainer/HBoxContainer/PreviewPanel/VBoxContainer/PortraitRect
+# Referências
+@onready var character_list: VBoxContainer = %CharacterList
+@onready var character_name: Label = %CharacterName
+@onready var character_desc: Label = %Description
+@onready var weapon_name: Label = %WeaponName
+@onready var stats_container: VBoxContainer = %StatsContainer
+@onready var special_ability: Label = %SpecialAbility
+@onready var unlock_label: Label = %UnlockCondition
+@onready var select_button: Button = %SelectButton
+@onready var portrait_rect: TextureRect = %PortraitRect
+
+# Dificuldade Referências (Nodes na cena agora)
+@onready var difficulty_button: Button = %DifficultyButton
+@onready var difficulty_desc_label: RichTextLabel = %DifficultyDescLabel
 
 # Estado
 var selected_character_id: String = ""
@@ -29,6 +33,9 @@ var character_button_scene: PackedScene = null
 # Seed customizado (passado pelo main_menu)
 var custom_seed: int = -1  # -1 = random
 var use_custom_seed: bool = false
+
+# === DIFICULDADE ===
+
 
 
 func _ready() -> void:
@@ -48,6 +55,81 @@ func _ready() -> void:
 	# Seleciona o personagem atual
 	selected_character_id = character_manager.selected_character_id
 	_update_preview(selected_character_id)
+	
+	# Atualiza display de dificuldade
+	_update_difficulty_display()
+	
+	# Connect difficulty button signal manually if needed (or in scene)
+	if difficulty_button and not difficulty_button.pressed.is_connected(_on_difficulty_pressed):
+		difficulty_button.pressed.connect(_on_difficulty_pressed)
+
+
+# _setup_difficulty_ui removido - agora está na cena
+
+
+func _update_difficulty_display() -> void:
+	"""Atualiza botão e painel de dificuldade"""
+	if not GameManager:
+		return
+	
+	var diff = GameManager.current_difficulty
+	var diff_name = GameManager.get_difficulty_name()
+	
+	# Atualiza botão
+	if difficulty_button:
+		difficulty_button.text = "⚔ " + diff_name
+		
+		# Cor do botão baseada na dificuldade
+		var style = StyleBoxFlat.new()
+		style.corner_radius_top_left = 5
+		style.corner_radius_top_right = 5
+		style.corner_radius_bottom_left = 5
+		style.corner_radius_bottom_right = 5
+		
+		match diff:
+			GameManager.Difficulty.EASY:
+				style.bg_color = Color(0.2, 0.5, 0.3)
+			GameManager.Difficulty.MEDIUM:
+				style.bg_color = Color(0.4, 0.4, 0.2)
+			GameManager.Difficulty.HARD:
+				style.bg_color = Color(0.6, 0.3, 0.2)
+			GameManager.Difficulty.MACHAO:
+				style.bg_color = Color(0.6, 0.1, 0.1)
+		
+		difficulty_button.add_theme_stylebox_override("normal", style)
+		
+		var hover_style = style.duplicate()
+		hover_style.bg_color = style.bg_color.lightened(0.2)
+		difficulty_button.add_theme_stylebox_override("hover", hover_style)
+	
+	# Atualiza descrição
+	if difficulty_desc_label:
+		var desc = GameManager.get_difficulty_description(diff)
+		difficulty_desc_label.text = desc
+
+
+func _on_difficulty_pressed() -> void:
+	"""Cicla entre dificuldades"""
+	if not GameManager:
+		return
+	
+	var current = GameManager.current_difficulty
+	var next_diff: GameManager.Difficulty
+	
+	match current:
+		GameManager.Difficulty.EASY:
+			next_diff = GameManager.Difficulty.MEDIUM
+		GameManager.Difficulty.MEDIUM:
+			next_diff = GameManager.Difficulty.HARD
+		GameManager.Difficulty.HARD:
+			next_diff = GameManager.Difficulty.MACHAO
+		GameManager.Difficulty.MACHAO:
+			next_diff = GameManager.Difficulty.EASY
+		_:
+			next_diff = GameManager.Difficulty.MEDIUM
+	
+	GameManager.set_difficulty(next_diff)
+	_update_difficulty_display()
 
 
 func _populate_character_list() -> void:
@@ -85,9 +167,6 @@ func _on_character_button_pressed(character_id: String) -> void:
 	selected_character_id = character_id
 	_update_preview(character_id)
 
-	# Efeito sonoro
-	# TODO: AudioManager.play_sfx("ui_click")
-
 
 func _update_preview(character_id: String) -> void:
 	"""Atualiza o painel de preview"""
@@ -123,7 +202,17 @@ func _update_preview(character_id: String) -> void:
 
 	# Cor do retrato
 	if portrait_rect:
-		portrait_rect.color = char_data.portrait_color
+		if char_data.has("portrait_path"):
+			var path = char_data["portrait_path"]
+			if ResourceLoader.exists(path):
+				portrait_rect.texture = load(path)
+				portrait_rect.self_modulate = Color.WHITE
+			else:
+				portrait_rect.texture = null
+				portrait_rect.self_modulate = char_data.get("portrait_color", Color.WHITE)
+		else:
+			portrait_rect.texture = null
+			portrait_rect.self_modulate = char_data.get("portrait_color", Color.WHITE)
 
 	# Botão de seleção
 	if select_button:
@@ -183,3 +272,4 @@ func _start_game() -> void:
 func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		back_pressed.emit()
+

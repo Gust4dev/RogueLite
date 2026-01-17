@@ -72,6 +72,7 @@ var navigation_region: NavigationRegion3D = null
 var lighting_container: Node3D = null
 var spawn_points_container: Node3D = null
 var boss_arenas_container: Node3D = null
+var npc_container: Node3D = null
 
 # === BIOME CONFIG ===
 var biome_config: BiomeConfig = null
@@ -109,6 +110,10 @@ func _create_containers() -> void:
 	boss_arenas_container = Node3D.new()
 	boss_arenas_container.name = "BossArenas"
 	add_child(boss_arenas_container)
+
+	npc_container = Node3D.new()
+	npc_container.name = "NPCs"
+	add_child(npc_container)
 
 
 ## Gera o mapa completo com seed opcional
@@ -184,6 +189,10 @@ func generate_map(seed_value: int = -1) -> void:
 	_create_boss_arena_visuals()
 	generation_progress.emit("Visuais das arenas criados", 0.9)
 
+	# Spawna o mercador
+	_spawn_merchant()
+	generation_progress.emit("Mercador spawnado", 0.92)
+
 	# Cria navegação (NavMesh)
 	_setup_navigation()
 	generation_progress.emit("Navegação configurada", 0.95)
@@ -200,6 +209,52 @@ func generate_map(seed_value: int = -1) -> void:
 	print("  - Spawn points: ", spawn_points.size())
 
 	generation_completed.emit(current_seed)
+
+
+func _spawn_merchant() -> void:
+	"""Spawna o mercador em uma posição segura perto do spawn"""
+	if not ResourceLoader.exists("res://npcs/merchant.tscn"):
+		print("[MapGenerator] ERRO: Cena do mercador não encontrada!")
+		return
+		
+	var merchant_scene = load("res://npcs/merchant.tscn")
+	var merchant = merchant_scene.instantiate()
+	
+	# Tenta encontrar uma posição válida perto do player (10-20m)
+	var spawn_pos = Vector3.ZERO
+	var found = false
+	var attempts = 0
+	
+	while not found and attempts < 20:
+		attempts += 1
+		var angle = randf() * TAU
+		var dist = randf_range(10.0, 20.0)
+		var test_pos = player_spawn_position + Vector3(sin(angle), 0, cos(angle)) * dist
+		
+		# Verifica se está dentro da arena
+		if abs(test_pos.x) >= HALF_ARENA - 2 or abs(test_pos.z) >= HALF_ARENA - 2:
+			continue
+			
+		# Verifica se não colide com obstáculos
+		var cell = _world_to_grid(test_pos)
+		if _is_valid_cell(cell.x, cell.y) and grid[cell.x][cell.y] in [CellType.EMPTY, CellType.CORRIDOR, CellType.PLAYER_SPAWN]:
+			spawn_pos = _grid_to_world(cell.x, cell.y)
+			# Ajusta altura
+			spawn_pos.y = 0.0
+			found = true
+	
+	if not found:
+		# Fallback: coloca bem perto do player
+		spawn_pos = player_spawn_position + Vector3(5, 0, 5)
+		
+	print("[MapGenerator] Mercador spawnado em: ", spawn_pos)
+	merchant.position = spawn_pos
+	
+	# Adiciona ao container de NPCs
+	if npc_container:
+		npc_container.add_child(merchant)
+	else:
+		add_child(merchant)
 
 
 func _clear_previous_generation() -> void:
@@ -225,7 +280,7 @@ func _clear_previous_generation() -> void:
 
 	# Limpa containers
 	for container in [walls_container, obstacles_container, lighting_container,
-					  spawn_points_container, boss_arenas_container]:
+					  spawn_points_container, boss_arenas_container, npc_container]:
 		if container:
 			for child in container.get_children():
 				child.queue_free()

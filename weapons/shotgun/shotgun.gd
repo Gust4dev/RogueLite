@@ -61,10 +61,11 @@ func _ready() -> void:
 	movement_sway_amount = 0.01
 
 	# Nomes das animações
-	anim_shoot = "Shoot"
-	anim_reload = "Reload"
-	anim_draw = "Draw"
-	anim_idle = "Idle"
+	# Nomes das animações - UPDATED FOR NEW MODEL
+	anim_shoot = "Armature|Shoot" # Assumindo mesmo padrão
+	anim_reload = "Armature|Reload"
+	anim_draw = "Armature|Take"
+	anim_idle = ""
 
 	# Velocidade das animações
 	anim_speed_shoot = 1.2  # Animação mais lenta (pump)

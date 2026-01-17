@@ -1,19 +1,19 @@
-[gd_scene load_steps=3 format=3 uid="uid://cakjfut8h18r7"]
+[gd_scene load_steps=4 format=3 uid="uid://cakjfut8h18r7"]
 
 [ext_resource type="Script" uid="uid://bitnns46gfh87" path="res://tools/weapon_preview_tool.gd" id="1_preview"]
-[ext_resource type="PackedScene" uid="uid://bancuqcnxv7yo" path="res://assets/weapons/Sniper/sniper_animated.glb" id="2_ckpha"]
+[ext_resource type="PackedScene" uid="uid://d02t12p217dvn" path="res://weapons/sniper/sniper.tscn" id="2_8wdqn"]
+[ext_resource type="Script" uid="uid://uq6f8dj3v0bg" path="res://weapons/sniper/sniper.gd" id="3_cgxht"]
 
 [node name="WeaponPreview" type="Node3D"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -47.196594, 0)
 script = ExtResource("1_preview")
-weapon_position = Vector3(-31.305, -28.92, -28.48)
-weapon_rotation = Vector3(0, 0, 180)
-weapon_scale = Vector3(0.02, 0.02, 0.02)
+weapon_position = Vector3(10.805, -21.995, -8.93)
+weapon_rotation = Vector3(0, 0, 0)
 selected_weapon = "Sniper"
 
 [node name="PreviewCamera" type="Camera3D" parent="."]
 fov = 90.0
 near = 0.01
 
-[node name="Sketchfab_Scene" type="Node3D" parent="." instance=ExtResource("2_ckpha")]
-transform = Transform3D(-0.02, 1.7484555e-09, 0, -1.7484555e-09, -0.02, 0, 0, 0, 0.02, -31.305, -28.92, -28.48)
+[node name="Sniper" type="Node3D" parent="." instance=ExtResource("2_8wdqn")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.805, -21.995, -8.93)
+script = ExtResource("3_cgxht")
