@@ -250,24 +250,96 @@ func get_difficulty_description(difficulty: Difficulty) -> String:
 	"""Retorna descrição da dificuldade para UI"""
 	var mods = DIFFICULTY_MODIFIERS[difficulty]
 	var desc = ""
-	
+
 	# Spawn info
 	var spawn_pct = int(mods["spawn"] * 100)
 	desc += "Inimigos: %d%%\n" % spawn_pct
-	
+
 	# Damage info
 	var dmg_pct = int(mods["damage"] * 100)
 	desc += "Dano: %d%%\n" % dmg_pct
-	
+
 	# Rewards
 	var xp_bonus = int((mods["xp"] - 1.0) * 100)
 	var money_bonus = int((mods["money"] - 1.0) * 100)
-	
+
 	if xp_bonus > 0 or money_bonus > 0:
 		desc += "\n[color=gold]BÔNUS:[/color]\n"
 		if xp_bonus > 0:
 			desc += "+%d%% XP\n" % xp_bonus
 		if money_bonus > 0:
 			desc += "+%d%% Dinheiro" % money_bonus
-	
+
 	return desc
+
+
+# === TIME-BASED DIFFICULTY SCALING ===
+# Inimigos ficam mais fortes com o tempo
+# HP: +10% a cada 3 minutos
+# Damage: +5% a cada 3 minutos
+# Spawn rate: +20% a cada 3 minutos
+# Elite chance: aumenta com o tempo
+
+const GAME_DURATION: int = 900  # 15 minutos em segundos
+const SCALING_INTERVAL: float = 180.0  # 3 minutos em segundos
+const HP_SCALING_PER_INTERVAL: float = 0.10  # +10% HP
+const DAMAGE_SCALING_PER_INTERVAL: float = 0.05  # +5% damage
+const SPAWN_SCALING_PER_INTERVAL: float = 0.20  # +20% spawn rate
+const ELITE_CHANCE_BASE: float = 0.05  # 5% base chance
+const ELITE_CHANCE_PER_INTERVAL: float = 0.03  # +3% per interval
+
+func get_time_elapsed() -> float:
+	"""Retorna tempo decorrido em segundos"""
+	return float(GAME_DURATION - time_remaining)
+
+
+func get_scaling_intervals_passed() -> int:
+	"""Retorna quantos intervalos de scaling passaram"""
+	return int(get_time_elapsed() / SCALING_INTERVAL)
+
+
+func get_hp_scaling_factor() -> float:
+	"""Retorna fator de scaling de HP baseado no tempo"""
+	var intervals = get_scaling_intervals_passed()
+	return 1.0 + (intervals * HP_SCALING_PER_INTERVAL)
+
+
+func get_time_damage_scaling() -> float:
+	"""Retorna fator de scaling de dano baseado no tempo"""
+	var intervals = get_scaling_intervals_passed()
+	return 1.0 + (intervals * DAMAGE_SCALING_PER_INTERVAL)
+
+
+func get_spawn_rate_scaling() -> float:
+	"""Retorna fator de scaling de spawn rate baseado no tempo"""
+	var intervals = get_scaling_intervals_passed()
+	return 1.0 + (intervals * SPAWN_SCALING_PER_INTERVAL)
+
+
+func get_elite_spawn_chance() -> float:
+	"""Retorna chance de spawn elite baseada no tempo"""
+	var intervals = get_scaling_intervals_passed()
+	return ELITE_CHANCE_BASE + (intervals * ELITE_CHANCE_PER_INTERVAL)
+
+
+func get_scaled_enemy_stats(base_hp: float, base_damage: float) -> Dictionary:
+	"""Retorna stats escalados para um inimigo"""
+	var hp_scale = get_hp_scaling_factor()
+	var dmg_scale = get_time_damage_scaling() * get_damage_multiplier()
+
+	return {
+		"hp": base_hp * hp_scale,
+		"damage": base_damage * dmg_scale
+	}
+
+
+func get_current_scaling_info() -> Dictionary:
+	"""Retorna informações de scaling atual para debug/UI"""
+	return {
+		"time_elapsed": get_time_elapsed(),
+		"intervals_passed": get_scaling_intervals_passed(),
+		"hp_multiplier": get_hp_scaling_factor(),
+		"damage_multiplier": get_time_damage_scaling(),
+		"spawn_multiplier": get_spawn_rate_scaling(),
+		"elite_chance": get_elite_spawn_chance()
+	}

@@ -2,6 +2,7 @@ extends BaseEnemy
 
 # Mini Boss Base - Classe base para todos os mini-bosses
 # Estende BaseEnemy com mecânicas específicas de boss
+# Inclui sistema de AI Patterns (CHASE, SHOOT, SUMMON, RAGE)
 
 class_name MiniBoss
 
@@ -10,6 +11,15 @@ signal boss_died(boss_number: int, dropped_key: bool)
 signal boss_health_changed(current: float, maximum: float)
 signal boss_intro_started()
 signal boss_intro_finished()
+signal pattern_changed(new_pattern: int)
+
+# === AI PATTERNS ===
+enum Pattern {
+	CHASE,      # Persegue e ataca melee
+	SHOOT,      # Atira projéteis
+	SUMMON,     # Invoca minions
+	RAGE        # Modo fúria (abaixo de 25% HP)
+}
 
 # === BOSS CONFIG ===
 @export_group("Boss Config")
@@ -33,6 +43,17 @@ signal boss_intro_finished()
 @export var charge_range: float = 15.0  # Distância para iniciar charge
 @export var charge_damage_multiplier: float = 2.0
 
+# === PATTERN CONFIG ===
+@export_group("Pattern Config")
+@export var patterns_enabled: bool = true
+@export var chase_duration: float = 5.0
+@export var shoot_duration: float = 3.0
+@export var summon_duration: float = 2.0
+@export var projectile_speed: float = 10.0
+@export var projectiles_per_burst: int = 3
+@export var summon_count: int = 2
+@export var rage_threshold: float = 0.25  # 25% HP
+
 # === BOSS VISUAL ===
 @export_group("Boss Visual")
 @export var boss_scale: float = 1.5  # Bosses são maiores
@@ -54,8 +75,17 @@ var charge_direction: Vector3 = Vector3.ZERO
 var intro_playing: bool = false
 var boss_active: bool = false
 
-# Referência ao key scene
+# Pattern state
+var current_pattern: Pattern = Pattern.CHASE
+var pattern_timer: float = 0.0
+var is_in_rage: bool = false
+var is_shooting: bool = false
+var is_summoning: bool = false
+
+# Referências
 var key_scene: PackedScene = null
+var projectile_scene: PackedScene = null
+var zombie_scene: PackedScene = null
 
 
 func _ready() -> void:
@@ -77,6 +107,14 @@ func _ready() -> void:
 	# Carrega cena da key
 	if ResourceLoader.exists("res://items/key_item.tscn"):
 		key_scene = load("res://items/key_item.tscn")
+
+	# Carrega cena do projétil para pattern SHOOT
+	if ResourceLoader.exists("res://enemies/projectiles/enemy_projectile.tscn"):
+		projectile_scene = load("res://enemies/projectiles/enemy_projectile.tscn")
+
+	# Carrega cena do zombie para pattern SUMMON
+	if ResourceLoader.exists("res://enemies/zombie.tscn"):
+		zombie_scene = load("res://enemies/zombie.tscn")
 
 	# Emite health inicial
 	boss_health_changed.emit(current_health, max_health)
@@ -158,7 +196,12 @@ func _physics_process(delta: float) -> void:
 		_process_charge(delta)
 		return
 
-	# Verifica se pode iniciar um charge attack
+	# Sistema de Patterns
+	if patterns_enabled:
+		_process_patterns(delta)
+		return
+
+	# Verifica se pode iniciar um charge attack (legacy behavior)
 	if charge_attack_enabled and charge_timer <= 0 and target:
 		var distance = global_position.distance_to(target.global_position)
 		if distance >= attack_range and distance <= charge_range:
@@ -167,6 +210,323 @@ func _physics_process(delta: float) -> void:
 
 	# Processa movimento normal do BaseEnemy
 	super._physics_process(delta)
+
+
+func _process_patterns(delta: float) -> void:
+	"""Processa o sistema de AI patterns"""
+	pattern_timer += delta
+
+	# Verifica se deve entrar em RAGE (abaixo de 25% HP)
+	if not is_in_rage and current_health / max_health <= rage_threshold:
+		_enter_rage_mode()
+
+	match current_pattern:
+		Pattern.CHASE:
+			_pattern_chase(delta)
+			if pattern_timer > chase_duration:
+				_switch_pattern(Pattern.SHOOT)
+
+		Pattern.SHOOT:
+			_pattern_shoot(delta)
+			if pattern_timer > shoot_duration:
+				_switch_pattern(Pattern.SUMMON)
+
+		Pattern.SUMMON:
+			_pattern_summon(delta)
+			if pattern_timer > summon_duration:
+				_switch_pattern(Pattern.CHASE)
+
+		Pattern.RAGE:
+			_pattern_rage(delta)
+
+
+func _switch_pattern(new_pattern: Pattern) -> void:
+	"""Muda para um novo pattern"""
+	if is_in_rage:
+		return  # Em rage não muda de pattern
+
+	current_pattern = new_pattern
+	pattern_timer = 0.0
+	is_shooting = false
+	is_summoning = false
+	pattern_changed.emit(new_pattern)
+
+	# Visual feedback de mudança de pattern
+	_pattern_change_visual()
+
+
+func _pattern_change_visual() -> void:
+	"""Efeito visual ao mudar de pattern"""
+	if mesh:
+		var tween = create_tween()
+		tween.tween_property(mesh, "scale", mesh.scale * 1.1, 0.1)
+		tween.tween_property(mesh, "scale", mesh.scale, 0.1)
+
+
+func _enter_rage_mode() -> void:
+	"""Entra no modo RAGE (abaixo de 25% HP)"""
+	is_in_rage = true
+	current_pattern = Pattern.RAGE
+	pattern_timer = 0.0
+	pattern_changed.emit(Pattern.RAGE)
+
+	# Buffs de rage
+	speed *= 1.5
+	attack_cooldown *= 0.5
+
+	# Visual de rage
+	_apply_rage_visual()
+
+
+func _apply_rage_visual() -> void:
+	"""Aplica visual de modo rage"""
+	var mesh_instance = _find_mesh_instance()
+	if mesh_instance:
+		var mat = mesh_instance.get_surface_override_material(0)
+		if mat is StandardMaterial3D:
+			mat.emission = Color.RED
+			mat.emission_energy_multiplier = 4.0
+
+
+func _pattern_chase(delta: float) -> void:
+	"""Pattern CHASE - persegue e ataca melee"""
+	if not target:
+		return
+
+	var distance = global_position.distance_to(target.global_position)
+
+	# Verifica se pode fazer charge durante chase
+	if charge_attack_enabled and charge_timer <= 0:
+		if distance >= attack_range and distance <= charge_range:
+			_start_charge()
+			return
+
+	# Comportamento normal de chase/ataque
+	super._physics_process(delta)
+
+
+func _pattern_shoot(delta: float) -> void:
+	"""Pattern SHOOT - atira projéteis"""
+	if not target:
+		return
+
+	# Para e atira
+	velocity.x = 0
+	velocity.z = 0
+
+	# Olha para o player
+	var look_target = Vector3(target.global_position.x, global_position.y, target.global_position.z)
+	if global_position.distance_to(look_target) > 0.1:
+		look_at(look_target)
+
+	# Atira projéteis
+	if not is_shooting and can_attack:
+		_shoot_projectiles()
+
+	# Aplica gravidade
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+
+	move_and_slide()
+
+
+func _shoot_projectiles() -> void:
+	"""Dispara uma rajada de projéteis"""
+	if not projectile_scene:
+		return
+
+	is_shooting = true
+	can_attack = false
+	attack_timer = attack_cooldown
+
+	# Telegraph visual
+	_shoot_telegraph()
+
+	await get_tree().create_timer(0.3).timeout
+
+	if not _is_alive or not target:
+		is_shooting = false
+		return
+
+	# Dispara múltiplos projéteis
+	for i in range(projectiles_per_burst):
+		_fire_single_projectile(i)
+		await get_tree().create_timer(0.15).timeout
+
+	is_shooting = false
+
+
+func _shoot_telegraph() -> void:
+	"""Aviso visual antes de atirar"""
+	if mesh:
+		var mesh_instance = _find_mesh_instance()
+		if mesh_instance:
+			var mat = mesh_instance.get_surface_override_material(0)
+			if mat is StandardMaterial3D:
+				var orig = mat.emission_energy_multiplier
+				mat.emission_energy_multiplier = 5.0
+				await get_tree().create_timer(0.2).timeout
+				if is_instance_valid(mat):
+					mat.emission_energy_multiplier = orig
+
+
+func _fire_single_projectile(index: int) -> void:
+	"""Dispara um único projétil"""
+	if not projectile_scene or not target:
+		return
+
+	var projectile = projectile_scene.instantiate()
+	get_tree().current_scene.add_child(projectile)
+
+	var spawn_pos = global_position + Vector3(0, 1.5, 0)
+	projectile.global_position = spawn_pos
+
+	# Direção com spread baseado no índice
+	var base_dir = (target.global_position - spawn_pos).normalized()
+	var spread_angle = (index - projectiles_per_burst / 2.0) * 0.2
+	var spread_dir = base_dir.rotated(Vector3.UP, spread_angle)
+
+	var actual_damage = damage * 0.5  # Projéteis causam menos dano
+	if GameManager:
+		actual_damage *= GameManager.get_damage_multiplier()
+
+	if projectile.has_method("setup"):
+		projectile.setup(spread_dir, projectile_speed, actual_damage)
+		projectile.projectile_color = glow_color
+
+
+func _pattern_summon(delta: float) -> void:
+	"""Pattern SUMMON - invoca minions"""
+	if not target:
+		return
+
+	# Para durante summon
+	velocity.x = 0
+	velocity.z = 0
+
+	# Invoca minions
+	if not is_summoning:
+		_summon_minions()
+
+	# Aplica gravidade
+	if not is_on_floor():
+		velocity.y -= gravity * delta
+
+	move_and_slide()
+
+
+func _summon_minions() -> void:
+	"""Invoca minions zombies"""
+	if not zombie_scene:
+		return
+
+	is_summoning = true
+
+	# Telegraph visual
+	_summon_telegraph()
+
+	await get_tree().create_timer(0.5).timeout
+
+	if not _is_alive:
+		is_summoning = false
+		return
+
+	# Spawna minions em círculo
+	for i in range(summon_count):
+		var angle = (TAU / summon_count) * i
+		var spawn_offset = Vector3(cos(angle) * 3.0, 0.5, sin(angle) * 3.0)
+		var spawn_pos = global_position + spawn_offset
+
+		var minion = zombie_scene.instantiate()
+		get_tree().current_scene.add_child(minion)
+		minion.global_position = spawn_pos
+
+		# Efeito de spawn
+		_spawn_minion_effect(spawn_pos)
+
+	is_summoning = false
+
+
+func _summon_telegraph() -> void:
+	"""Efeito visual antes de invocar"""
+	if mesh:
+		var tween = create_tween()
+		tween.tween_property(mesh, "position:y", mesh.position.y + 0.3, 0.2)
+		tween.tween_property(mesh, "position:y", mesh_y_offset, 0.3)
+
+
+func _spawn_minion_effect(pos: Vector3) -> void:
+	"""Efeito visual no local do spawn do minion"""
+	var effect = MeshInstance3D.new()
+	var cylinder = CylinderMesh.new()
+	cylinder.top_radius = 0.8
+	cylinder.bottom_radius = 0.8
+	cylinder.height = 0.1
+	effect.mesh = cylinder
+
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, 0.5)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.emission_enabled = true
+	mat.emission = glow_color
+	mat.emission_energy_multiplier = 2.0
+	effect.set_surface_override_material(0, mat)
+
+	get_tree().current_scene.add_child(effect)
+	effect.global_position = pos
+
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(effect, "scale", Vector3.ONE * 2.0, 0.5)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 0.5)
+	await tween.finished
+	effect.queue_free()
+
+
+func _pattern_rage(delta: float) -> void:
+	"""Pattern RAGE - modo fúria agressivo"""
+	if not target:
+		return
+
+	var distance = global_position.distance_to(target.global_position)
+
+	# Charge frequente em rage
+	if charge_attack_enabled and charge_timer <= 0:
+		if distance >= attack_range * 0.5 and distance <= charge_range * 1.5:
+			_start_charge()
+			return
+
+	# Atira enquanto persegue
+	if can_attack and projectile_scene:
+		_fire_rage_projectile()
+
+	# Persegue agressivamente
+	super._physics_process(delta)
+
+
+func _fire_rage_projectile() -> void:
+	"""Dispara projétil durante rage mode"""
+	if not projectile_scene or not target:
+		return
+
+	can_attack = false
+	attack_timer = attack_cooldown * 0.5  # Atira mais rápido em rage
+
+	var projectile = projectile_scene.instantiate()
+	get_tree().current_scene.add_child(projectile)
+
+	var spawn_pos = global_position + Vector3(0, 1.5, 0)
+	projectile.global_position = spawn_pos
+
+	var direction = (target.global_position - spawn_pos).normalized()
+
+	var actual_damage = damage * 0.3
+	if GameManager:
+		actual_damage *= GameManager.get_damage_multiplier()
+
+	if projectile.has_method("setup"):
+		projectile.setup(direction, projectile_speed * 1.5, actual_damage)
+		projectile.projectile_color = Color.RED
 
 
 func _start_charge() -> void:

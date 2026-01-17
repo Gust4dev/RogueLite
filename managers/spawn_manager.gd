@@ -24,9 +24,38 @@ var boss_spawn_point: Node3D = null
 
 # Cenas de inimigos e bosses
 var zombie_scene: PackedScene
+var shooter_scene: PackedScene
+var raptor_scene: PackedScene
+var tank_scene: PackedScene
+var exploder_scene: PackedScene
+var flying_drone_scene: PackedScene
+var spawner_scene: PackedScene
 var boss_scenes: Array[PackedScene] = []
 var portal_scene: PackedScene
 var key_scene: PackedScene
+
+# Enum para tipos de inimigos
+enum EnemyType {
+	ZOMBIE,
+	SHOOTER,
+	RAPTOR,
+	TANK,
+	EXPLODER,
+	FLYING_DRONE,
+	SPAWNER
+}
+
+# Pesos de spawn por tipo (ajusta probabilidade)
+# Valores mais altos = mais comum
+var enemy_spawn_weights: Dictionary = {
+	EnemyType.ZOMBIE: 40,       # Mais comum
+	EnemyType.SHOOTER: 20,
+	EnemyType.RAPTOR: 15,
+	EnemyType.TANK: 5,          # Raro
+	EnemyType.EXPLODER: 10,
+	EnemyType.FLYING_DRONE: 8,
+	EnemyType.SPAWNER: 2,       # Muito raro
+}
 
 # Controle de spawns
 var enemies_alive: int = 0
@@ -56,9 +85,8 @@ var map_generator: Node3D = null
 var boss_arena_spawn_points: Array[Node3D] = []
 
 func _ready() -> void:
-	# Carrega as cenas de inimigos
-	if ResourceLoader.exists("res://enemies/zombie.tscn"):
-		zombie_scene = load("res://enemies/zombie.tscn")
+	# Carrega todas as cenas de inimigos
+	_load_enemy_scenes()
 
 	# Carrega cenas de bosses
 	_load_boss_scenes()
@@ -74,6 +102,40 @@ func _ready() -> void:
 	# Conecta ao GameManager para monitorar o tempo
 	if GameManager:
 		GameManager.time_changed.connect(_on_time_changed)
+
+
+func _load_enemy_scenes() -> void:
+	"""Carrega todas as cenas de inimigos"""
+	var enemy_paths = {
+		"zombie": "res://enemies/zombie.tscn",
+		"shooter": "res://enemies/shooter.tscn",
+		"raptor": "res://enemies/raptor.tscn",
+		"tank": "res://enemies/tank.tscn",
+		"exploder": "res://enemies/exploder.tscn",
+		"flying_drone": "res://enemies/flying_drone.tscn",
+		"spawner": "res://enemies/spawner.tscn",
+	}
+
+	for enemy_name in enemy_paths:
+		var path = enemy_paths[enemy_name]
+		if ResourceLoader.exists(path):
+			match enemy_name:
+				"zombie":
+					zombie_scene = load(path)
+				"shooter":
+					shooter_scene = load(path)
+				"raptor":
+					raptor_scene = load(path)
+				"tank":
+					tank_scene = load(path)
+				"exploder":
+					exploder_scene = load(path)
+				"flying_drone":
+					flying_drone_scene = load(path)
+				"spawner":
+					spawner_scene = load(path)
+		else:
+			push_warning("Enemy scene not found: " + path)
 
 
 func _load_boss_scenes() -> void:
@@ -190,14 +252,73 @@ func _get_valid_spawn_position(desired_pos: Vector3) -> Vector3:
 
 func spawn_zombie(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
 	"""Spawna um zombie na posição especificada"""
+	return _spawn_enemy_of_type(EnemyType.ZOMBIE, spawn_pos)
+
+
+func spawn_shooter(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um shooter na posição especificada"""
+	return _spawn_enemy_of_type(EnemyType.SHOOTER, spawn_pos)
+
+
+func spawn_raptor(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um raptor na posição especificada"""
+	return _spawn_enemy_of_type(EnemyType.RAPTOR, spawn_pos)
+
+
+func spawn_tank(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um tank na posição especificada"""
+	return _spawn_enemy_of_type(EnemyType.TANK, spawn_pos)
+
+
+func spawn_exploder(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um exploder na posição especificada"""
+	return _spawn_enemy_of_type(EnemyType.EXPLODER, spawn_pos)
+
+
+func spawn_flying_drone(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um flying drone na posição especificada"""
+	return _spawn_enemy_of_type(EnemyType.FLYING_DRONE, spawn_pos)
+
+
+func spawn_spawner_enemy(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um spawner na posição especificada"""
+	return _spawn_enemy_of_type(EnemyType.SPAWNER, spawn_pos)
+
+
+func _get_scene_for_type(enemy_type: EnemyType) -> PackedScene:
+	"""Retorna a cena correspondente ao tipo de inimigo"""
+	match enemy_type:
+		EnemyType.ZOMBIE:
+			return zombie_scene
+		EnemyType.SHOOTER:
+			return shooter_scene
+		EnemyType.RAPTOR:
+			return raptor_scene
+		EnemyType.TANK:
+			return tank_scene
+		EnemyType.EXPLODER:
+			return exploder_scene
+		EnemyType.FLYING_DRONE:
+			return flying_drone_scene
+		EnemyType.SPAWNER:
+			return spawner_scene
+	return zombie_scene
+
+
+func _spawn_enemy_of_type(enemy_type: EnemyType, spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um inimigo de tipo específico"""
 	if spawn_paused:
 		return null
 
-	if zombie_scene == null:
-		push_error("Zombie scene not loaded!")
-		return null
+	var scene = _get_scene_for_type(enemy_type)
+	if scene == null:
+		# Fallback para zombie
+		scene = zombie_scene
+		if scene == null:
+			push_error("No enemy scene available!")
+			return null
 
-	var zombie = zombie_scene.instantiate()
+	var enemy = scene.instantiate()
 
 	# Se não passou posição, usa um spawn point aleatório
 	if spawn_pos == Vector3.ZERO:
@@ -209,27 +330,77 @@ func spawn_zombie(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
 	spawn_pos = _get_valid_spawn_position(spawn_pos)
 
 	# Adiciona à cena principal
-	get_tree().current_scene.add_child(zombie)
-	zombie.global_position = spawn_pos
+	get_tree().current_scene.add_child(enemy)
+	enemy.global_position = spawn_pos
+
+	# Verifica se deve ser elite
+	_try_make_elite(enemy)
 
 	enemies_alive += 1
-	enemy_spawned.emit(zombie)
+	enemy_spawned.emit(enemy)
 
-	# Conecta ao signal de morte para decrementar contador e respawnar
-	if zombie.has_signal("died"):
-		zombie.died.connect(_on_enemy_died)
+	# Conecta ao signal de morte
+	if enemy.has_signal("died"):
+		enemy.died.connect(_on_enemy_died)
 
-	return zombie
+	# Track para meta progression
+	if MetaProgression:
+		enemy.died.connect(MetaProgression.track_enemy_killed)
+
+	return enemy
+
+
+func _try_make_elite(enemy: Node3D) -> void:
+	"""Tenta transformar o inimigo em elite baseado na chance atual"""
+	if not GameManager:
+		return
+
+	var elite_chance = GameManager.get_elite_spawn_chance()
+	if randf() < elite_chance:
+		# Carrega e aplica o modificador elite
+		if enemy.has_method("set_meta"):
+			var elite_modifier_script = load("res://enemies/elite_modifier.gd")
+			if elite_modifier_script:
+				var modifier = elite_modifier_script.new()
+				enemy.add_child(modifier)
+
+
+func _get_random_enemy_type() -> EnemyType:
+	"""Retorna um tipo de inimigo aleatório baseado nos pesos"""
+	var total_weight = 0
+	for weight in enemy_spawn_weights.values():
+		total_weight += weight
+
+	var random_value = randi() % total_weight
+	var current_weight = 0
+
+	for enemy_type in enemy_spawn_weights:
+		current_weight += enemy_spawn_weights[enemy_type]
+		if random_value < current_weight:
+			return enemy_type
+
+	return EnemyType.ZOMBIE
+
+
+func spawn_random_enemy(spawn_pos: Vector3 = Vector3.ZERO) -> Node3D:
+	"""Spawna um inimigo de tipo aleatório baseado nos pesos"""
+	var enemy_type = _get_random_enemy_type()
+	return _spawn_enemy_of_type(enemy_type, spawn_pos)
 
 
 func spawn_wave(count: int) -> void:
-	"""Spawna uma wave de inimigos"""
+	"""Spawna uma wave de inimigos variados"""
 	if spawn_paused:
 		return
 
-	for i in range(count):
+	# Aplica scaling de spawn rate
+	var scaled_count = count
+	if GameManager:
+		scaled_count = int(count * GameManager.get_spawn_rate_scaling())
+
+	for i in range(scaled_count):
 		if enemies_alive < max_enemies:
-			spawn_zombie()
+			spawn_random_enemy()
 
 
 func spawn_boss(boss_index: int) -> void:
@@ -410,4 +581,4 @@ func _on_enemy_died() -> void:
 func _spawn_replacement() -> void:
 	"""Spawna um inimigo de reposição"""
 	if enemies_alive < max_enemies:
-		spawn_zombie()
+		spawn_random_enemy()

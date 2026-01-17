@@ -51,6 +51,9 @@ var nearby_update_timer: float = 0.0
 const NEARBY_UPDATE_INTERVAL: float = 0.2  # Atualiza a cada 200ms
 
 func _ready() -> void:
+	# Aplica scaling de dificuldade baseado no tempo
+	_apply_difficulty_scaling()
+
 	# Inicializa health
 	current_health = max_health
 	_is_alive = true
@@ -81,6 +84,17 @@ func _ready() -> void:
 
 	# Toca animação de spawn
 	_play_spawn_animation()
+
+
+func _apply_difficulty_scaling() -> void:
+	"""Aplica scaling de dificuldade baseado no tempo decorrido"""
+	if not GameManager:
+		return
+
+	# Obtém stats escalados
+	var scaled = GameManager.get_scaled_enemy_stats(max_health, damage)
+	max_health = scaled["hp"]
+	damage = scaled["damage"]
 
 func _find_player() -> void:
 	"""Encontra o player na cena"""

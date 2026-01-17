@@ -25,6 +25,7 @@ XPManager="*res://managers/xp_manager.gd"
 CharacterManager="*res://managers/character_manager.gd"
 MoneyManager="*res://managers/money_manager.gd"
 ShopManager="*res://managers/shop_manager.gd"
+MetaProgression="*res://managers/meta_progression.gd"
 
 [display]
 
