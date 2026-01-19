@@ -19,6 +19,10 @@ var font_primary = preload("res://assets/fonts/LexendDeca-VariableFont_wght.ttf"
 var font_secondary = preload("res://assets/fonts/PoiretOne-Regular.ttf")
 var use_custom_seed: bool = false
 
+# === META PROGRESSION SHOP ===
+var meta_shop_screen: MetaShopScreen = null
+var souls_button: Button = null
+
 
 func _ready() -> void:
 	print("--- MainMenu PRE-INIT ---")
@@ -73,7 +77,10 @@ func _ready() -> void:
 
 	# Cria botão de seed
 	_setup_seed_button()
-	# print("Skipping seed button setup for debug")
+	
+	# Cria botão de Souls e meta shop
+	_setup_souls_button()
+	_setup_meta_shop()
 
 func _load_image_manually(target_node: TextureRect, path: String) -> void:
 	"""Carrega imagem lendo bytes brutos (bypassing ResourceLoader)"""
@@ -135,6 +142,81 @@ func _setup_seed_button() -> void:
 	var play_index = play_button.get_index()
 	vbox.add_child(seed_button)
 	vbox.move_child(seed_button, play_index + 1)
+
+
+func _setup_souls_button() -> void:
+	"""Cria botão para abrir a loja de Souls"""
+	var vbox = menu_container
+
+	souls_button = Button.new()
+	
+	# Texto com quantidade de souls
+	var souls_count = 0
+	if MetaProgression:
+		souls_count = MetaProgression.get_meta_currency()
+	souls_button.text = "✧ SOULS (%d)" % souls_count
+	
+	souls_button.custom_minimum_size = Vector2(0, 35)
+	souls_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	souls_button.pressed.connect(_on_souls_button_pressed)
+	
+	# Estilo similar aos outros botões
+	if play_button:
+		souls_button.add_theme_font_override("font", font_primary)
+		souls_button.add_theme_font_size_override("font_size", 28)
+		souls_button.add_theme_color_override("font_color", Color(0.7, 0.5, 1.0))
+		souls_button.add_theme_color_override("font_hover_color", Color(0.9, 0.7, 1.0))
+		souls_button.add_theme_stylebox_override("normal", play_button.get_theme_stylebox("normal"))
+		souls_button.add_theme_stylebox_override("hover", play_button.get_theme_stylebox("hover"))
+		souls_button.add_theme_stylebox_override("pressed", play_button.get_theme_stylebox("pressed"))
+		souls_button.add_theme_stylebox_override("focus", play_button.get_theme_stylebox("focus"))
+
+	# Insere após o botão de seed
+	if seed_button:
+		var seed_index = seed_button.get_index()
+		vbox.add_child(souls_button)
+		vbox.move_child(souls_button, seed_index + 1)
+	else:
+		vbox.add_child(souls_button)
+
+
+func _setup_meta_shop() -> void:
+	"""Cria a tela de meta shop"""
+	meta_shop_screen = MetaShopScreen.new()
+	meta_shop_screen.name = "MetaShopScreen"
+	add_child(meta_shop_screen)
+	
+	# Conecta sinais
+	meta_shop_screen.closed.connect(_on_meta_shop_closed)
+	meta_shop_screen.upgrade_purchased.connect(_on_upgrade_purchased)
+
+
+func _on_souls_button_pressed() -> void:
+	"""Abre a loja de souls"""
+	if meta_shop_screen:
+		meta_shop_screen.show_shop()
+		# Esconde menu
+		if menu_container:
+			menu_container.visible = false
+
+
+func _on_meta_shop_closed() -> void:
+	"""Callback quando fecha a loja"""
+	if menu_container:
+		menu_container.visible = true
+	_update_souls_button()
+
+
+func _on_upgrade_purchased(upgrade_id: String) -> void:
+	"""Callback quando compra um upgrade"""
+	_update_souls_button()
+
+
+func _update_souls_button() -> void:
+	"""Atualiza texto do botão de souls"""
+	if souls_button and MetaProgression:
+		var souls_count = MetaProgression.get_meta_currency()
+		souls_button.text = "✧ SOULS (%d)" % souls_count
 
 
 func _setup_seed_input_screen() -> void:

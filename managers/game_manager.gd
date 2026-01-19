@@ -26,12 +26,18 @@ signal victory()
 signal state_changed(new_state: GameState)
 signal run_reset()
 signal difficulty_changed(new_difficulty: Difficulty)
+signal world_changed(new_world: int)
 
 # Variáveis globais
 var current_state: GameState = GameState.PLAYING
 var has_boss_key: bool = false
 var time_remaining: int = 900  # 15 minutos = 900 segundos
 var is_timer_running: bool = false
+
+# === SISTEMA DE MUNDOS ===
+var current_world: int = 1
+var max_worlds: int = 5
+var is_world_transition: bool = false  # Flag para indicar transição de mundo
 
 # === SISTEMA DE DIFICULDADE ===
 var current_difficulty: Difficulty = Difficulty.MEDIUM
@@ -70,7 +76,10 @@ func _ready() -> void:
 
 func start_timer() -> void:
 	"""Inicia o countdown do timer de 15 minutos"""
-	time_remaining = 900
+	# Se for transição de mundo, NÃO reseta o timer
+	if not is_world_transition:
+		time_remaining = 900
+	is_world_transition = false  # Limpa a flag
 	is_timer_running = true
 	timer.start()
 	time_changed.emit(time_remaining)
@@ -102,6 +111,13 @@ func win_game() -> void:
 	"""Chama quando o player vence"""
 	current_state = GameState.VICTORY
 	stop_timer()
+	
+	# Finaliza run e calcula currency ganho
+	if MetaProgression:
+		MetaProgression.track_time(900 - time_remaining)
+		var currency_earned = MetaProgression.end_run(true)
+		print("[GameManager] Run finalizada! Currency ganho: ", currency_earned)
+	
 	victory.emit()
 	state_changed.emit(current_state)
 
@@ -109,6 +125,13 @@ func lose_game() -> void:
 	"""Chama quando o player morre"""
 	current_state = GameState.GAME_OVER
 	stop_timer()
+	
+	# Finaliza run e calcula currency ganho
+	if MetaProgression:
+		MetaProgression.track_time(900 - time_remaining)
+		var currency_earned = MetaProgression.end_run(false)
+		print("[GameManager] Game Over! Currency ganho: ", currency_earned)
+	
 	game_over.emit()
 	state_changed.emit(current_state)
 
@@ -129,10 +152,56 @@ func get_formatted_time() -> String:
 	return "%02d:%02d" % [minutes, seconds]
 
 
+func advance_to_next_world() -> void:
+	"""Avança para o próximo mundo após entrar no portal"""
+	current_world += 1
+	
+	if current_world > max_worlds:
+		# Vitória final após todos os mundos
+		win_game()
+		return
+	
+	print("[GameManager] Avançando para mundo ", current_world)
+	
+	# Mark como transição de mundo (NÃO reseta timer, XP, dinheiro, etc)
+	is_world_transition = true
+	
+	# Reset parcial para novo mundo (mantém upgrades, XP, dinheiro)
+	has_boss_key = false
+	current_state = GameState.PLAYING
+	
+	# Reseta apenas o SpawnManager (não XP, Money, Upgrades)
+	if SpawnManager:
+		SpawnManager.reset_spawn_manager()
+	
+	# Reseta contador de compras da loja (mas mantém itens únicos comprados)
+	if ShopManager:
+		ShopManager.reset_for_new_map()
+	
+	# Emite signal de mudança de mundo
+	world_changed.emit(current_world)
+	
+	# Novo seed aleatório para o próximo mapa
+	procedural_seed = -1
+	procedural_biome = -1
+	
+	# Recarrega a cena
+	get_tree().paused = false
+	get_tree().reload_current_scene()
+
+
+func get_world_difficulty_multiplier() -> float:
+	"""Retorna multiplicador de dificuldade baseado no mundo atual (1.0 a 2.0)"""
+	return 1.0 + (current_world - 1) * 0.25
+
+
 func reset_run() -> void:
 	"""Reseta a run completamente (como se iniciasse uma nova com o mesmo personagem)"""
 	# Reset state
 	reset_game()
+	
+	# Reset mundo para 1
+	current_world = 1
 	
 	# Clear upgrades
 	if UpgradeManager:

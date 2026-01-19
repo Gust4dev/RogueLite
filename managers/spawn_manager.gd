@@ -449,6 +449,10 @@ func _on_boss_died(boss_number: int, dropped_key: bool) -> void:
 	boss_active = false
 	current_boss = null
 
+	# Track para meta progression
+	if MetaProgression:
+		MetaProgression.track_boss_killed()
+
 	# Emite signal
 	boss_defeated.emit(boss_number, dropped_key)
 

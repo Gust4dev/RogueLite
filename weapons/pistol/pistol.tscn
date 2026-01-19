@@ -6,7 +6,9 @@
 
 [node name="Pistol" type="Node3D"]
 script = ExtResource("1_pistol")
-viewmodel_rotation = Vector3(0, 0, 0)
+viewmodel_scale = Vector3(1.000000, 1.000000, 1.000000)
+viewmodel_position = Vector3(-0.025000, 0.750000, -0.500000)
+viewmodel_rotation = Vector3(0.000000, 0.000000, 0.000000)
 
 [node name="PistolMesh" parent="." instance=ExtResource("3_pistol_mesh")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.014167428, -5.0516505, 0.11693382)
@@ -17,4 +19,5 @@ collision_mask = 6
 collide_with_areas = true
 
 [node name="MuzzleFlash" parent="." instance=ExtResource("2_muzzle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, -0.2, -0.8)
+transform = Transform3D(1.684999, 0.000000, -0.001470, 0.000000, 1.685000, 0.000000, 0.001470, 0.000000, 1.684999, 0.350000, -0.200000, -0.800000)
+

@@ -11,6 +11,9 @@ var weapon_type: String = "pistol"
 
 
 func _ready() -> void:
+	# Define meshes que devem ir para o overlay (ignora Manny/braços)
+	weapon_mesh_keywords = ["p9", "pistol"]
+	
 	# === STATS BÁSICOS ===
 	# 15 dmg / 0.25s = 60 DPS (target)
 	damage = 15.0

@@ -1,18 +1,18 @@
 [gd_scene load_steps=4 format=3 uid="uid://d02t12p217dvn"]
 
-[ext_resource type="Script" uid="uid://csniper_script1" path="res://weapons/sniper/sniper.gd" id="1_sniper"]
+[ext_resource type="Script" path="res://weapons/sniper/sniper.gd" id="1_sniper"]
 [ext_resource type="PackedScene" uid="uid://ccj3yt7xqw8kv" path="res://vfx/muzzle_flash.tscn" id="2_muzzle"]
 [ext_resource type="PackedScene" path="res://assets/weapons/Sniper/sniper_animated.glb" id="3_sniper_mesh"]
 
 [node name="Sniper" type="Node3D"]
 script = ExtResource("1_sniper")
-viewmodel_position = Vector3(0.5, -0.4, -0.8) # Posição mais próxima e segura
-viewmodel_rotation = Vector3(0, 0, 0)
-viewmodel_scale = Vector3(0.1, 0.1, 0.1) # Reduzindo para 10% do tamanho (era gigante)
+viewmodel_position = Vector3(1.850000, -2.280000, -0.620000) # Posição mais próxima e segura
+viewmodel_rotation = Vector3(0.000000, 180.000000, 0.000000)
+viewmodel_scale = Vector3(0.100000, 0.100000, 0.100000) # Reduzindo para 10% do tamanho (era gigante)
 use_viewmodel_calibration = true
 
 [node name="SniperMesh" parent="." instance=ExtResource("3_sniper_mesh")]
-transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.25, -0.25, -0.8)
+
 
 [node name="RayCast3D" type="RayCast3D" parent="."]
 target_position = Vector3(0, 0, -200)
@@ -23,4 +23,13 @@ enabled = true
 exclude_parent = true
 
 [node name="MuzzleFlash" parent="." instance=ExtResource("2_muzzle")]
-transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 0.2, -0.12, -1.2)
+transform = Transform3D(1.684999, 0.000000, -0.001470, 0.000000, 1.685000, 0.000000, 0.001470, 0.000000, 1.684999, -0.130000, 11.200000, 107.294998)
+
+
+
+
+
+
+
+
+

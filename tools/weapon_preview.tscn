@@ -1,19 +1,15 @@
-[gd_scene load_steps=4 format=3 uid="uid://cakjfut8h18r7"]
+[gd_scene load_steps=2 format=3 uid="uid://cakjfut8h18r7"]
 
 [ext_resource type="Script" uid="uid://bitnns46gfh87" path="res://tools/weapon_preview_tool.gd" id="1_preview"]
-[ext_resource type="PackedScene" uid="uid://d02t12p217dvn" path="res://weapons/sniper/sniper.tscn" id="2_8wdqn"]
-[ext_resource type="Script" uid="uid://uq6f8dj3v0bg" path="res://weapons/sniper/sniper.gd" id="3_cgxht"]
 
 [node name="WeaponPreview" type="Node3D"]
 script = ExtResource("1_preview")
-weapon_position = Vector3(10.805, -21.995, -8.93)
+weapon_position = Vector3(-0.025, 0.75, -0.5)
 weapon_rotation = Vector3(0, 0, 0)
-selected_weapon = "Sniper"
+muzzle_flash_position = Vector3(0.35, -0.2, -0.8)
+muzzle_flash_rotation = Vector3(0, 0.04999998, 0)
+muzzle_flash_scale = Vector3(1.6850001, 1.685, 1.6850001)
 
 [node name="PreviewCamera" type="Camera3D" parent="."]
 fov = 90.0
 near = 0.01
-
-[node name="Sniper" type="Node3D" parent="." instance=ExtResource("2_8wdqn")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.805, -21.995, -8.93)
-script = ExtResource("3_cgxht")

@@ -70,18 +70,53 @@ func _ready() -> void:
 	_setup_timer()
 
 
+## Pesos de spawn por tipo de inimigo (valores mais altos = mais comum)
+const ENEMY_SPAWN_WEIGHTS: Dictionary = {
+	"zombie": 40,       # Mais comum - carne de canhão
+	"shooter": 20,      # Ranged
+	"raptor": 15,       # Rápido
+	"tank": 5,          # Raro - muito HP
+	"exploder": 10,     # Explode ao morrer
+	"flying_drone": 8,  # Voador
+	"spawner": 2,       # Muito raro - spawna outros inimigos
+}
+
 func _load_enemy_scenes() -> void:
-	"""Carrega as cenas de inimigos disponíveis"""
+	"""Carrega todas as cenas de inimigos disponíveis"""
 	var enemy_paths = {
-		"zombie": "res://enemies/zombie.tscn"
+		"zombie": "res://enemies/zombie.tscn",
+		"shooter": "res://enemies/shooter.tscn",
+		"raptor": "res://enemies/raptor.tscn",
+		"tank": "res://enemies/tank.tscn",
+		"exploder": "res://enemies/exploder.tscn",
+		"flying_drone": "res://enemies/flying_drone.tscn",
+		"spawner": "res://enemies/spawner.tscn",
 	}
 
 	for enemy_type in enemy_paths:
 		var path = enemy_paths[enemy_type]
 		if ResourceLoader.exists(path):
 			enemy_scenes[enemy_type] = load(path)
+			print("[ProceduralSpawnSystem] Carregado: ", enemy_type)
 		else:
 			push_warning("[ProceduralSpawnSystem] Cena não encontrada: " + path)
+
+
+func _get_random_enemy_type() -> String:
+	"""Retorna um tipo de inimigo aleatório baseado nos pesos"""
+	var total_weight = 0
+	for weight in ENEMY_SPAWN_WEIGHTS.values():
+		total_weight += weight
+	
+	var random_value = randi() % total_weight
+	var current_weight = 0
+	
+	for enemy_type in ENEMY_SPAWN_WEIGHTS:
+		current_weight += ENEMY_SPAWN_WEIGHTS[enemy_type]
+		if random_value < current_weight:
+			return enemy_type
+	
+	return "zombie"  # Fallback
 
 
 func _setup_timer() -> void:
@@ -387,7 +422,11 @@ func _get_fallback_position() -> Vector3:
 
 
 ## Spawna um inimigo em uma posição específica
-func _spawn_enemy_at(pos: Vector3, enemy_type: String = "zombie") -> Node3D:
+func _spawn_enemy_at(pos: Vector3, enemy_type: String = "") -> Node3D:
+	# Se não especificou tipo, escolhe aleatoriamente
+	if enemy_type == "":
+		enemy_type = _get_random_enemy_type()
+	
 	if not enemy_scenes.has(enemy_type):
 		push_error("[ProceduralSpawnSystem] Tipo de inimigo não encontrado: " + enemy_type)
 		return null

@@ -6,7 +6,9 @@
 
 [node name="Revolver" type="Node3D"]
 script = ExtResource("1_revolver")
-viewmodel_rotation = Vector3(0, 0, 0)
+viewmodel_scale = Vector3(1.000000, 1.000000, 1.000000)
+viewmodel_position = Vector3(0.250000, -0.250000, -0.500000)
+viewmodel_rotation = Vector3(0.000000, 0.000000, 0.000000)
 use_viewmodel_calibration = true
 
 [node name="RevolverMesh" parent="." instance=ExtResource("3_revolver_mesh")]
@@ -18,4 +20,5 @@ collision_mask = 6
 collide_with_areas = true
 
 [node name="MuzzleFlash" parent="." instance=ExtResource("2_muzzle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.35, -0.2, -0.9)
+transform = Transform3D(1.684999, 0.000000, -0.001470, 0.000000, 1.685000, 0.000000, 0.001470, 0.000000, 1.684999, 0.295000, -0.220000, -2.385000)
+

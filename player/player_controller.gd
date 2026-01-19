@@ -53,6 +53,10 @@ const RESET_HOLD_DURATION: float = 1.5
 const RESET_HOLD_THRESHOLD: float = 0.2  # Tempo antes de mostrar indicador (para não conflitar com reload)
 
 
+# Viewmodel Overlay System
+var viewmodel_viewport: SubViewport = null
+var viewmodel_camera: Camera3D = null
+
 func _ready() -> void:
 	# Captura o mouse
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -66,9 +70,16 @@ func _ready() -> void:
 		add_child(stats)
 
 	# Configura camera effects
-	if camera and not camera_effects:
-		camera_effects = CameraEffects.new()
-		camera.add_child(camera_effects)
+	if camera:
+		if not camera_effects:
+			camera_effects = CameraEffects.new()
+			camera.add_child(camera_effects)
+		
+		# EXCLUI a layer 2 (armas) da câmera principal
+		camera.cull_mask &= ~(1 << 1)
+		
+		# Setup do ViewModel Overlay (sempre no topo)
+		_setup_viewmodel_overlay()
 
 	# Configura aim assist
 	_setup_aim_assist()
@@ -80,6 +91,97 @@ func _ready() -> void:
 	if stats:
 		stats.health_changed.connect(_on_health_changed)
 		stats.damage_taken.connect(_on_damage_taken)
+
+func _setup_viewmodel_overlay() -> void:
+	"""Cria uma viewport transparente por cima da tela para as armas"""
+	# Primeiro remove se já existir (para evitar duplicatas em re-equips ou hot-reload)
+	var old = get_node_or_null("ViewModelLayer")
+	if old: old.queue_free()
+
+	# CanvasLayer para o ViewModel (Desenha por cima do mundo)
+	var canvas = CanvasLayer.new()
+	canvas.name = "ViewModelLayer"
+	canvas.layer = 1 # Foreground das armas
+	add_child(canvas)
+	
+	# Container que estica na tela toda
+	var container = SubViewportContainer.new()
+	container.name = "ViewModelContainer"
+	container.stretch = true
+	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(container)
+	
+	# Viewport transparente
+	viewmodel_viewport = SubViewport.new()
+	viewmodel_viewport.name = "ViewModelViewport"
+	viewmodel_viewport.transparent_bg = true
+	viewmodel_viewport.handle_input_locally = false
+	viewmodel_viewport.gui_disable_input = true
+	viewmodel_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	
+	# Garante que a viewport tenha o tamanho da tela atual e responda a mudanças
+	viewmodel_viewport.size = DisplayServer.window_get_size()
+	
+	# COMPARTILHA O MUNDO
+	# Isso é vital para iluminação
+	viewmodel_viewport.own_world_3d = false
+	viewmodel_viewport.world_3d = camera.get_world_3d()
+	container.add_child(viewmodel_viewport)
+	
+	# Câmera secundária que só vê Layer 2
+	viewmodel_camera = Camera3D.new()
+	viewmodel_camera.name = "ViewModelCamera"
+	viewmodel_camera.cull_mask = (1 << 1) # Só Layer 2
+	viewmodel_camera.near = 0.05
+	viewmodel_camera.far = 100.0
+	viewmodel_camera.fov = camera.fov
+	
+	# === ENVIRONMENT DEDICADO PARA ARMAS ===
+	# Criamos um ambiente que ignora o fog do mundo e garante luz ambiente
+	var weapon_env = Environment.new()
+	weapon_env.background_mode = Environment.BG_CANVAS
+	weapon_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	weapon_env.ambient_light_color = Color.WHITE
+	weapon_env.ambient_light_energy = 0.5 # Luz de preenchimento constante
+	weapon_env.fog_enabled = false # JAMAIS usar fog nas armas
+	weapon_env.volumetric_fog_enabled = false
+	viewmodel_camera.environment = weapon_env
+	
+	viewmodel_viewport.add_child(viewmodel_camera)
+	
+	# === VIEWMODEL LIGHTING RIG (Studio Lighting) ===
+	# Como as armas estão na Layer 2, elas não recebem luz do mundo real.
+	# Criamos um rig de 3 pontos para garantir volume e visibilidade.
+	
+	# 1. Key Light (Principal - Lateral Superior)
+	var key_light = OmniLight3D.new()
+	key_light.name = "KeyLight"
+	key_light.light_cull_mask = (1 << 1)
+	key_light.light_energy = 3.0 # Aumentada para garantir brilho
+	key_light.omni_range = 5.0
+	key_light.position = Vector3(1.0, 1.0, 0.5)
+	viewmodel_camera.add_child(key_light)
+	
+	# 2. Front Light (Luz frontal direta)
+	var front_light = OmniLight3D.new()
+	front_light.name = "FrontLight"
+	front_light.light_cull_mask = (1 << 1)
+	front_light.light_energy = 2.0
+	front_light.omni_range = 5.0
+	front_light.position = Vector3(0, 0, 1.0)
+	viewmodel_camera.add_child(front_light)
+	
+	# 3. Rim Light (Luz de contorno traseira)
+	var rim_light = OmniLight3D.new()
+	rim_light.name = "RimLight"
+	rim_light.light_cull_mask = (1 << 1)
+	rim_light.light_energy = 4.0 # Força o 'brilho' nas bordas
+	rim_light.omni_range = 10.0
+	rim_light.position = Vector3(0, 0, -2.0)
+	viewmodel_camera.add_child(rim_light)
+	
+	print("[Player] ViewModel Lighting Rig (3-Point) configurado.")
 
 
 func _setup_aim_assist() -> void:
@@ -212,6 +314,11 @@ func _physics_process(delta: float) -> void:
 
 	# Processar dash input
 	_process_dash_input()
+	
+	# === SINCRONIZA VIEWMODEL CAMERA ===
+	# A câmera do overlay deve sempre seguir a câmera principal
+	if viewmodel_camera and camera:
+		viewmodel_camera.global_transform = camera.global_transform
 
 
 func _check_landing(prev_on_floor: bool) -> void:
@@ -324,24 +431,88 @@ func _on_dash_ended() -> void:
 
 
 func equip_weapon(weapon: Node3D) -> void:
-	"""Equipa uma arma"""
-	# Remove arma atual
+	"""Equipa uma arma - agora corretamente vinculada à câmera"""
+	# Remove arma atual imediatamente do cenário
 	if current_weapon:
+		if current_weapon.get_parent():
+			current_weapon.get_parent().remove_child(current_weapon)
 		current_weapon.queue_free()
 
 	current_weapon = weapon
 
-	# Adiciona como filho do PLAYER (não da câmera) para evitar bug de skinned mesh
-	if weapon.get_parent() != self:
+	# Adiciona como filho da CÂMERA para que a arma siga o olhar do player
+	if weapon.get_parent() != camera:
 		if weapon.get_parent():
 			weapon.get_parent().remove_child(weapon)
-		add_child(weapon)
+		camera.add_child(weapon)
 	
-	# Posiciona a arma na altura da câmera
-	weapon.position = Vector3(0, 1.6, 0)  # Altura da câmera
-	weapon.rotation = Vector3.ZERO
+	# Coloca a arma na Layer 2 (Viewmodel) recursivamente
+	print("[Player] --- TREE DUMP: ", weapon.name, " ---")
+	weapon.print_tree()
+	_set_layer_recursive(weapon, 2)
 	
-	print("[Player] Arma equipada como filho do Player")
+	# Verificação final: imprime o estado de TODAS as meshes
+	print("[Player] --- FINAL STATE CHECK ---")
+	_verify_layer_state(weapon)
+	
+	print("[Player] Arma equipada (Layer 2)")
+
+
+func _set_layer_recursive(node: Node, layer: int, parent_hidden: bool = false) -> void:
+	"""Define a layer de visualização e DESATIVA braços/corpo da hierarquia com Whitelist"""
+	var n = node.name.to_lower()
+	
+	# Log de TODOS os nós para diagnóstico
+	# printerr("[NODE] ", node.name, " (", node.get_class(), ") parent_hidden=", parent_hidden)
+	
+	# Pega keywords da arma atual para whitelist
+	var weapon_keywords = []
+	if current_weapon and "weapon_mesh_keywords" in current_weapon:
+		weapon_keywords = current_weapon.weapon_mesh_keywords
+	
+	# Verifica se é uma parte proibida (Blacklist) - ATUALIZADO com mais palavras
+	var is_blacklist = "body" in n or "head" in n or "arm" in n or "hand" in n or "finger" in n or "man" in n or "skeleton" in n or "mensch" in n or "fullbody" in n or "pole" in n
+	
+	# Verifica se é a arma (Whitelist - se houver keywords)
+	var is_whitelist = false
+	if weapon_keywords.size() > 0:
+		for kw in weapon_keywords:
+			if kw.to_lower() in n:
+				is_whitelist = true
+				break
+	else:
+		# Se não tem keywords, fallback para lógica antiga (assume que tudo visível que não é blacklist é arma)
+		is_whitelist = not is_blacklist
+	
+	# Nodes que devem ser escondidos: se forem blacklist ou se o pai estiver escondido
+	var should_hide = parent_hidden or is_blacklist or (weapon_keywords.size() > 0 and not is_whitelist and node is VisualInstance3D and node.get_parent() is Skeleton3D)
+	
+	# Trata QUALQUER Node3D (não só VisualInstance3D) para esconder braços
+	if node is Node3D:
+		if should_hide:
+			printerr("[LAYER] HIDE Node3D: ", node.name, " (", node.get_class(), ")")
+			node.visible = false
+		elif node is VisualInstance3D:
+			if is_whitelist:
+				printerr("[LAYER] SHOW: ", node.name, " -> Layer 2")
+				node.layers = (1 << (layer - 1)) # Move para Overlay (Layer 2)
+			else:
+				printerr("[LAYER] SKIP: ", node.name, " (stays Layer 1)")
+				node.layers = 1  # Garante Layer 1
+	
+	# Propaga o estado de 'escondido'
+	for child in node.get_children():
+		_set_layer_recursive(child, layer, should_hide)
+
+
+func _verify_layer_state(node: Node) -> void:
+	"""Verifica e imprime o estado final de todas as meshes"""
+	if node is VisualInstance3D:
+		var mesh = node as VisualInstance3D
+		printerr("[VERIFY] ", mesh.name, " visible=", mesh.visible, " layer=", mesh.layers)
+	
+	for child in node.get_children():
+		_verify_layer_state(child)
 
 
 func take_damage(amount: float) -> void:
@@ -476,6 +647,11 @@ func _on_pause_main_menu() -> void:
 
 
 func _process(delta: float) -> void:
+	# Sincroniza a câmera do Viewmodel com a câmera principal
+	if viewmodel_camera and camera:
+		viewmodel_camera.global_transform = camera.global_transform
+		viewmodel_camera.fov = camera.fov
+
 	# Processa input de hold R para reset
 	_process_reset_hold_input(delta)
 

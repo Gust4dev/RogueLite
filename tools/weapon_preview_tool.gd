@@ -2,21 +2,13 @@
 extends Node3D
 
 # ============================================
-# WEAPON PREVIEW TOOL
-# Ferramenta para visualizar e ajustar armas no editor
-# sem precisar rodar o jogo
+# WEAPON PREVIEW TOOL (v2.1)
 # ============================================
-# 
-# USO:
-# 1. Adicione este nó à sua cena de arma (como filho root)
-# 2. Arraste sua arma/mesh como filho deste nó
-# 3. Ajuste os valores no Inspector em tempo real
-# 4. Veja a preview diretamente no editor!
 
 class_name WeaponPreviewTool
 
-# === CONFIGURAÇÕES DE POSIÇÃO FPS ===
-@export_group("FPS Position")
+# === CONFIGURAÇÕES DE VIEWMODEL (ROOT DA ARMA) ===
+@export_group("Viewmodel (Root)")
 @export var weapon_position: Vector3 = Vector3(0.3, -0.76, -0.17):
 	set(value):
 		weapon_position = value
@@ -32,6 +24,12 @@ class_name WeaponPreviewTool
 		weapon_scale = value
 		_update_weapon_transform()
 
+@export var save_weapon_transform: bool = false:
+	set(value):
+		if value and Engine.is_editor_hint():
+			_save_viewmodel_settings()
+			save_weapon_transform = false
+
 # === SELEÇÃO DE ARMA ===
 @export_group("Weapon Selection")
 @export_enum("Pistol", "Revolver", "SMG", "Shotgun", "Sniper", "LMG") var selected_weapon: String = "Pistol":
@@ -44,47 +42,20 @@ class_name WeaponPreviewTool
 	set(value):
 		if value and Engine.is_editor_hint():
 			_load_selected_weapon()
-
-@export var export_to_console: bool = false:
-	set(value):
-		if value and Engine.is_editor_hint():
-			print_transform_for_scene()
-
-@export var save_to_current_weapon_file: bool = false:
-	set(value):
-		if value and Engine.is_editor_hint():
-			_save_to_weapon_tscn()
+			reload_weapon = false
 
 # Mapeamento de nomes para caminhos de cena
 var weapon_scenes = {
 	"Pistol": "res://weapons/pistol/pistol.tscn",
 	"Revolver": "res://weapons/revolver/revolver.tscn",
-	"SMG": "res://assets/weapons/SMG/new_smg.tscn",
-	"Shotgun": "res://assets/weapons/Shotgun/new_shotgun.tscn",
+	"SMG": "res://weapons/smg/smg.tscn",
+	"Shotgun": "res://weapons/shotgun/shotgun.tscn",
 	"Sniper": "res://weapons/sniper/sniper.tscn",
 	"LMG": "res://weapons/lmg/lmg.tscn"
 }
 
-# === PRESETS ===
-@export_group("Quick Presets")
-@export var apply_pistol_preset: bool = false:
-	set(value):
-		if value:
-			weapon_position = Vector3(0.3, -0.3, -0.5)
-			weapon_rotation = Vector3(0, 180, 0)
-			weapon_scale = Vector3(1, 1, 1)
-			_update_weapon_transform()
-
-@export var apply_rifle_preset: bool = false:
-	set(value):
-		if value:
-			weapon_position = Vector3(0.25, -0.35, -0.6)
-			weapon_rotation = Vector3(0, 180, 0)
-			weapon_scale = Vector3(1, 1, 1)
-			_update_weapon_transform()
-
-# === DEBUG ===
-@export_group("Debug")
+# === DEBUG CAM ===
+@export_group("Debug Camera")
 @export var show_camera_preview: bool = true:
 	set(value):
 		show_camera_preview = value
@@ -96,244 +67,263 @@ var weapon_scenes = {
 		if _preview_camera:
 			_preview_camera.fov = value
 
+# === MUZZLE FLASH (LOCAL À ARMA) ===
+@export_group("Muzzle Flash (Local)")
+@export var muzzle_flash_position: Vector3 = Vector3(0, 0, -0.5):
+	set(value):
+		muzzle_flash_position = value
+		_update_muzzle_flash_transform()
+
+@export var muzzle_flash_rotation: Vector3 = Vector3(0, 0, 0):
+	set(value):
+		muzzle_flash_rotation = value
+		_update_muzzle_flash_transform()
+
+@export var muzzle_flash_scale: Vector3 = Vector3(1, 1, 1):
+	set(value):
+		muzzle_flash_scale = value
+		_update_muzzle_flash_transform()
+
+@export var show_muzzle_flash_preview: bool = true:
+	set(value):
+		show_muzzle_flash_preview = value
+		if _muzzle_flash_preview:
+			_muzzle_flash_preview.visible = value
+
+@export var save_muzzle_flash: bool = false:
+	set(value):
+		if value and Engine.is_editor_hint():
+			_save_muzzle_flash_transform()
+			save_muzzle_flash = false
+
 # Referências internas
-var _weapon_mesh: Node3D = null
+var _weapon_instance: Node3D = null
 var _preview_camera: Camera3D = null
+var _muzzle_flash_preview: Node3D = null
 
 
 func _ready() -> void:
 	if Engine.is_editor_hint():
-		_setup_editor_preview()
+		# Pequeno delay para garantir que a árvore está estável
+		call_deferred("_setup_editor_preview")
 
 
 func _setup_editor_preview() -> void:
-	"""Configura a preview no editor"""
-	_load_selected_weapon()
+	# Primeiro tenta achar a câmera existente na cena
+	_preview_camera = get_node_or_null("PreviewCamera")
+	if not _preview_camera:
+		_preview_camera = get_node_or_null("PreviewCam")
 	
-	# Cria câmera de preview
-	if show_camera_preview:
+	if not _preview_camera and show_camera_preview:
 		_create_preview_camera()
 	
-	_update_weapon_transform()
+	if _preview_camera:
+		_preview_camera.fov = preview_fov
+	
+	_load_selected_weapon()
 
 
 func _load_selected_weapon() -> void:
-	"""Carrega o modelo da arma selecionada"""
-	# Limpa filhos antigos (exceto a câmera)
+	"""Carrega a cena da arma"""
+	# Limpa instâncias antigas de armas (nós que não são a câmera nem o preview do muzzle se ele existir solto)
 	for child in get_children():
-		if child is Node3D and not child is Camera3D:
+		if child == _preview_camera: continue
+		if child.name == "PreviewMuzzle": continue
+		# Se o nome for o de uma arma conhecida ou tiver script de arma, remove
+		if child.has_method("shoot") or child.name in weapon_scenes.keys() or child.name == "Sniper":
 			child.free()
 	
-	var path = weapon_scenes.get(selected_weapon, "")
+	_weapon_instance = null
 	
-	if path == "" or not ResourceLoader.exists(path):
-		printerr("[Preview] Erro: Cena não encontrada em ", path)
+	var path = weapon_scenes.get(selected_weapon, "")
+	if not ResourceLoader.exists(path):
+		printerr("[Preview] Cena não encontrada: ", path)
 		return
 		
 	var scene = load(path)
 	if scene:
-		_weapon_mesh = scene.instantiate()
-		add_child(_weapon_mesh)
-		_weapon_mesh.owner = self
-		print("[Preview] Carregada: ", selected_weapon)
+		_weapon_instance = scene.instantiate()
+		_weapon_instance.name = selected_weapon # Nome amigável
+		add_child(_weapon_instance)
 		
-		# Tenta aplicar transforms salvos na cena se eles existirem (viewmodel_group)
-		if _weapon_mesh.get("viewmodel_position"):
-			weapon_position = _weapon_mesh.viewmodel_position
-			weapon_rotation = _weapon_mesh.viewmodel_rotation
-			weapon_scale = _weapon_mesh.viewmodel_scale
+		# Carrega configurações salvas no script BaseWeapon da instância
+		var view_pos = _weapon_instance.get("viewmodel_position")
+		if view_pos != null:
+			# Bloqueia setters temporariamente se necessário ou apenas aplica
+			weapon_position = view_pos
+			weapon_rotation = _weapon_instance.get("viewmodel_rotation")
+			weapon_scale = _weapon_instance.get("viewmodel_scale")
+			print("[Preview] Viewmodel configs carregadas de ", selected_weapon)
+		
+		# Procura MuzzleFlash existente para pegar configs
+		var muzzle = _weapon_instance.get_node_or_null("MuzzleFlash")
+		if muzzle:
+			muzzle_flash_position = muzzle.position
+			muzzle_flash_rotation = muzzle.rotation_degrees
+			muzzle_flash_scale = muzzle.scale
+			print("[Preview] Muzzle configs carregadas.")
+		
+		# Cria ou atualiza muzzle preview como FILHO da arma
+		_create_muzzle_flash_preview()
 		
 		_update_weapon_transform()
 
 
-func _play_idle_animation() -> void:
-	"""Encontra e toca a animação idle do modelo"""
-	if not _weapon_mesh:
-		return
-	
-	# Busca AnimationPlayer
-	var anim_player = _weapon_mesh.find_child("AnimationPlayer", true, false)
-	if anim_player and anim_player is AnimationPlayer:
-		var anims = anim_player.get_animation_list()
-		print("[Preview] Animações disponíveis: ", anims)
-		
-		# Procura por idle (pode ser WEP_Idle, Idle, idle, etc)
-		for anim_name in anims:
-			if "idle" in anim_name.to_lower():
-				anim_player.play(anim_name)
-				print("[Preview] Tocando animação: ", anim_name)
-				return
-		
-		# Se não encontrou idle, tenta a primeira animação que não seja T-pose
-		if anims.size() > 0:
-			anim_player.play(anims[0])
-			print("[Preview] Tocando primeira animação: ", anims[0])
-
-
 func _create_preview_camera() -> void:
-	"""Cria uma câmera para simular a visão FPS"""
-	if _preview_camera:
-		return
-		
+	if _preview_camera: return
 	_preview_camera = Camera3D.new()
-	_preview_camera.name = "WeaponPreviewCamera"
+	_preview_camera.name = "PreviewCamera"
 	_preview_camera.fov = preview_fov
 	_preview_camera.near = 0.01
-	_preview_camera.current = false  # Não ativa automaticamente
 	add_child(_preview_camera)
-	
-	# Posiciona a câmera na origem (simula a cabeça do player)
-	_preview_camera.position = Vector3.ZERO
-	_preview_camera.rotation = Vector3.ZERO
+	_preview_camera.owner = get_tree().edited_scene_root if Engine.is_editor_hint() else self
 
 
 func _toggle_preview_camera() -> void:
-	"""Liga/desliga a câmera de preview"""
-	if show_camera_preview and not _preview_camera:
+	if show_camera_preview:
 		_create_preview_camera()
-	elif not show_camera_preview and _preview_camera:
+	elif _preview_camera:
 		_preview_camera.queue_free()
 		_preview_camera = null
 
 
+func _create_muzzle_flash_preview() -> void:
+	if not _weapon_instance: return
+	
+	# Se já existir um preview antigo na arma, remove
+	var old = _weapon_instance.get_node_or_null("PreviewMuzzle")
+	if old: old.free()
+	
+	_muzzle_flash_preview = Node3D.new()
+	_muzzle_flash_preview.name = "PreviewMuzzle"
+	
+	# Indicador visual
+	var mesh = MeshInstance3D.new()
+	var sphere = SphereMesh.new()
+	sphere.radius = 0.05
+	sphere.height = 0.1
+	mesh.mesh = sphere
+	
+	var mat = StandardMaterial3D.new()
+	mat.albedo_color = Color.ORANGE
+	mat.emission_enabled = true
+	mat.emission = Color.ORANGE_RED
+	mat.emission_energy_multiplier = 4.0
+	mesh.material_override = mat
+	_muzzle_flash_preview.add_child(mesh)
+	
+	# Adiciona como FILHO DA ARMA
+	_weapon_instance.add_child(_muzzle_flash_preview)
+	_muzzle_flash_preview.visible = show_muzzle_flash_preview
+	
+	_update_muzzle_flash_transform()
+
+
 func _update_weapon_transform() -> void:
-	"""Atualiza a transformação do mesh da arma"""
-	if not Engine.is_editor_hint():
-		return
+	if _weapon_instance:
+		_weapon_instance.position = weapon_position
+		_weapon_instance.rotation_degrees = weapon_rotation
+		_weapon_instance.scale = weapon_scale
+
+
+func _update_muzzle_flash_transform() -> void:
+	# Atualiza o indicador (bolinha laranja)
+	if _muzzle_flash_preview:
+		_muzzle_flash_preview.position = muzzle_flash_position
+		_muzzle_flash_preview.rotation_degrees = muzzle_flash_rotation
+		_muzzle_flash_preview.scale = muzzle_flash_scale
 	
-	# Procura o mesh se não encontrou ainda
-	if not _weapon_mesh:
-		for child in get_children():
-			if child is Node3D and not child is Camera3D:
-				_weapon_mesh = child
-				break
-	
-	if _weapon_mesh:
-		_weapon_mesh.position = weapon_position
-		_weapon_mesh.rotation_degrees = weapon_rotation
-		_weapon_mesh.scale = weapon_scale
-		
-		# Força update visual no editor
-		if Engine.is_editor_hint():
-			_weapon_mesh.notify_property_list_changed()
+	# ATUALIZA O NÓ REAL TAMBÉM (para feedback imediato)
+	if _weapon_instance:
+		var real_muzzle = _weapon_instance.get_node_or_null("MuzzleFlash")
+		if real_muzzle:
+			real_muzzle.position = muzzle_flash_position
+			real_muzzle.rotation_degrees = muzzle_flash_rotation
+			real_muzzle.scale = muzzle_flash_scale
 
 
-# === GIZMOS PARA VISUALIZAÇÃO ===
-func _get_configuration_warnings() -> PackedStringArray:
-	var warnings: PackedStringArray = []
-	
-	var has_mesh = false
-	for child in get_children():
-		if child is Node3D and not child is Camera3D:
-			has_mesh = true
-			break
-	
-	if not has_mesh:
-		warnings.append("Adicione um mesh de arma como filho deste nó para visualizar")
-	
-	return warnings
+# === SALVAMENTO ===
 
-
-# === EXPORTAR VALORES ===
-func get_export_values() -> Dictionary:
-	"""Retorna os valores atuais para copiar para a cena da arma"""
-	return {
-		"position": weapon_position,
-		"rotation_degrees": weapon_rotation,
-		"scale": weapon_scale
-	}
-
-
-func print_transform_for_scene() -> void:
-	"""Imprime a transform para colar na cena .tscn"""
-	var rot_rad = weapon_rotation * (PI / 180.0)
-	var basis = Basis.from_euler(rot_rad)
-	basis = basis.scaled(weapon_scale)
-	
-	print("=== COPIE ESTA LINHA PARA pistol.tscn ===")
-	print("transform = Transform3D(", 
-		basis.x.x, ", ", basis.x.y, ", ", basis.x.z, ", ",
-		basis.y.x, ", ", basis.y.y, ", ", basis.y.z, ", ",
-		basis.z.x, ", ", basis.z.y, ", ", basis.z.z, ", ",
-		weapon_position.x, ", ", weapon_position.y, ", ", weapon_position.z, ")")
-	print("==========================================")
-
-
-func _save_to_weapon_tscn() -> void:
-	"""Salva o transform atual no arquivo .tscn da arma selecionada"""
+func _save_viewmodel_settings() -> void:
 	var tscn_path = weapon_scenes.get(selected_weapon, "")
-	if tscn_path == "":
-		printerr("[Preview] Erro: Arma não mapeada: ", selected_weapon)
-		return
+	var abs_path = ProjectSettings.globalize_path(tscn_path)
 	
-	# Converte res:// para caminho absoluto
-	var absolute_path = ProjectSettings.globalize_path(tscn_path)
+	var content = FileAccess.get_file_as_string(abs_path)
+	if content.is_empty(): return
+		
+	var s_pos = "viewmodel_position = Vector3(%f, %f, %f)" % [weapon_position.x, weapon_position.y, weapon_position.z]
+	var s_rot = "viewmodel_rotation = Vector3(%f, %f, %f)" % [weapon_rotation.x, weapon_rotation.y, weapon_rotation.z]
+	var s_scl = "viewmodel_scale = Vector3(%f, %f, %f)" % [weapon_scale.x, weapon_scale.y, weapon_scale.z]
 	
-	if not FileAccess.file_exists(absolute_path):
-		printerr("[Preview] Erro: Arquivo não encontrado: ", absolute_path)
-		return
+	content = _update_property_in_tscn(content, "viewmodel_position", s_pos)
+	content = _update_property_in_tscn(content, "viewmodel_rotation", s_rot)
+	content = _update_property_in_tscn(content, "viewmodel_scale", s_scl)
 	
-	# Lê o arquivo linha por linha
-	var file = FileAccess.open(absolute_path, FileAccess.READ)
+	var file = FileAccess.open(abs_path, FileAccess.WRITE)
+	file.store_string(content)
+	file.close()
+	print("[Preview] Viewmodel settings salvas em: ", tscn_path)
+
+
+func _save_muzzle_flash_transform() -> void:
+	var tscn_path = weapon_scenes.get(selected_weapon, "")
+	var abs_path = ProjectSettings.globalize_path(tscn_path)
+	
+	var file = FileAccess.open(abs_path, FileAccess.READ)
 	var lines = []
 	while not file.eof_reached():
 		lines.append(file.get_line())
 	file.close()
 	
-	# Gera a nova linha de transform
-	var rot_rad = weapon_rotation * (PI / 180.0)
-	var basis = Basis.from_euler(rot_rad)
-	basis = basis.scaled(weapon_scale)
+	var rot_rad = muzzle_flash_rotation * (PI / 180.0)
+	var basis = Basis.from_euler(rot_rad).scaled(muzzle_flash_scale)
 	
-	var transform_str = "transform = Transform3D(%.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g, %.8g)" % [
+	var s_transform = "transform = Transform3D(%f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f, %f)" % [
 		basis.x.x, basis.x.y, basis.x.z,
 		basis.y.x, basis.y.y, basis.y.z,
 		basis.z.x, basis.z.y, basis.z.z,
-		weapon_position.x, weapon_position.y, weapon_position.z
+		muzzle_flash_position.x, muzzle_flash_position.y, muzzle_flash_position.z
 	]
 	
-	# Procura o nó do mesh e a linha de transform logo abaixo
-	var mesh_node_name = selected_weapon + "Mesh"
 	var found_node = false
 	var modified = false
 	
 	for i in range(lines.size()):
-		var line = lines[i]
-		
-		# Encontrou a declaração do nó do mesh?
-		if '[node name="' + mesh_node_name + '"' in line:
+		if '[node name="MuzzleFlash"' in lines[i]:
 			found_node = true
-			print("[Preview] Encontrado nó: ", mesh_node_name, " na linha ", i + 1)
 			continue
-		
-		# Se encontrou o nó, a próxima linha com 'transform =' é a que precisamos modificar
-		if found_node and line.strip_edges().begins_with("transform = "):
-			lines[i] = transform_str
-			modified = true
-			print("[Preview] Transform modificado na linha ", i + 1)
-			break
-		
-		# Se encontrou outro nó antes de achar transform, o mesh não tinha transform definido
-		if found_node and line.begins_with("[node") or line.begins_with("[sub_resource"):
-			printerr("[Preview] Erro: Nó encontrado mas não tinha linha de transform.")
-			break
+			
+		if found_node:
+			if lines[i].strip_edges().begins_with("transform ="):
+				lines[i] = s_transform
+				modified = true
+				break
+			elif lines[i].begins_with("[node") or lines[i].begins_with("[ext_resource"):
+				lines.insert(i, s_transform)
+				modified = true
+				break
 	
 	if not found_node:
-		printerr("[Preview] Erro: Nó '", mesh_node_name, "' não encontrado no arquivo.")
+		printerr("[Preview] Nó MuzzleFlash não encontrado.")
 		return
-	
-	if not modified:
-		printerr("[Preview] Erro: Linha de transform não encontrada para o nó.")
-		return
-	
-	# Salva o arquivo de volta
-	var write_file = FileAccess.open(absolute_path, FileAccess.WRITE)
+		
+	file = FileAccess.open(abs_path, FileAccess.WRITE)
 	for line in lines:
-		write_file.store_line(line)
-	write_file.close()
+		file.store_line(line)
+	file.close()
+	print("[Preview] MuzzleFlash transform salvo em: ", tscn_path)
+
+
+func _update_property_in_tscn(content: String, prop_name: String, new_line: String) -> String:
+	var regex = RegEx.new()
+	regex.compile(prop_name + "\\s*=\\s*Vector3\\([^)]+\\)")
 	
-	print("==========================================")
-	print("[Preview] SUCESSO! Arquivo salvo: ", tscn_path)
-	print("  -> ", transform_str)
-	print("==========================================")
-	print("[Preview] IMPORTANTE: Recarregue a cena no editor (Ctrl+R ou feche/abra) para ver as mudanças.")
+	if regex.search(content):
+		return regex.sub(content, new_line)
+	else:
+		var script_pos = content.find("script =")
+		if script_pos != -1:
+			var end_line = content.find("\n", script_pos)
+			return content.insert(end_line + 1, new_line + "\n")
+		var first_break = content.find("\n")
+		return content.insert(first_break + 1, new_line + "\n")

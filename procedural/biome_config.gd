@@ -186,19 +186,22 @@ const MATERIAL_PROPERTIES = {
 		"metallic": 0.6,
 		"roughness": 0.7,
 		"emission_floor": false,
-		"emission_obstacles": false
+		"emission_obstacles": false,
+		"texture_path": "res://assets/textures/industrial/"
 	},
 	BiomeType.FOREST: {
 		"metallic": 0.0,
 		"roughness": 0.9,
 		"emission_floor": false,
-		"emission_obstacles": false
+		"emission_obstacles": false,
+		"texture_path": "res://assets/textures/forest/"
 	},
 	BiomeType.DESERT: {
 		"metallic": 0.1,
 		"roughness": 0.8,
 		"emission_floor": false,
-		"emission_obstacles": false
+		"emission_obstacles": false,
+		"texture_path": "res://assets/textures/desert/"
 	},
 	BiomeType.DUNGEON: {
 		"metallic": 0.2,
@@ -206,7 +209,8 @@ const MATERIAL_PROPERTIES = {
 		"emission_floor": false,
 		"emission_obstacles": true,
 		"emission_color": Color(0.3, 0.2, 0.5),
-		"emission_energy": 0.2
+		"emission_energy": 0.2,
+		"texture_path": "res://assets/textures/dungeon/"
 	},
 	BiomeType.TECH_LAB: {
 		"metallic": 0.8,
@@ -216,9 +220,14 @@ const MATERIAL_PROPERTIES = {
 		"emission_floor_energy": 0.1,
 		"emission_obstacles": true,
 		"emission_color": Color(0.1, 0.5, 0.8),
-		"emission_energy": 0.3
+		"emission_energy": 0.3,
+		"texture_path": "res://assets/textures/tech_lab/"
 	}
 }
+
+
+# Cache de texturas carregadas
+var _texture_cache: Dictionary = {}
 
 
 func _init() -> void:
@@ -263,16 +272,54 @@ func get_floor_material() -> StandardMaterial3D:
 	material.metallic = props.metallic
 	material.roughness = props.roughness
 
+	# Tenta carregar texturas do bioma
+	var texture_path = props.get("texture_path", "")
+	if texture_path != "":
+		_load_floor_textures(material, texture_path)
+
 	# Emissão do chão (para Tech Lab)
 	if props.get("emission_floor", false):
 		material.emission_enabled = true
 		material.emission = props.get("emission_floor_color", Color.WHITE)
 		material.emission_energy_multiplier = props.get("emission_floor_energy", 0.1)
 
-	# Adiciona textura procedural sutil
-	_add_subtle_texture(material, colors.floor)
+	# UV scaling para texturas - valor menor = textura mais "grande"
+	# UV Scale 2 solicitado pelo usuário para evitar protagonista minúsculo
+	material.uv1_scale = Vector3(2, 2, 2)
 
 	return material
+
+
+func _load_floor_textures(material: StandardMaterial3D, base_path: String) -> void:
+	"""Carrega texturas de chão de um diretório"""
+	# Tenta carregar albedo
+	var albedo_path = base_path + "floor_albedo.jpg"
+	if not ResourceLoader.exists(albedo_path):
+		albedo_path = base_path + "floor_albedo.png"
+	if ResourceLoader.exists(albedo_path):
+		var albedo_tex = load(albedo_path)
+		if albedo_tex:
+			material.albedo_texture = albedo_tex
+			material.albedo_color = Color.WHITE  # Reset color quando tem textura
+
+	# Tenta carregar normal
+	var normal_path = base_path + "floor_normal.jpg"
+	if not ResourceLoader.exists(normal_path):
+		normal_path = base_path + "floor_normal.png"
+	if ResourceLoader.exists(normal_path):
+		var normal_tex = load(normal_path)
+		if normal_tex:
+			material.normal_enabled = true
+			material.normal_texture = normal_tex
+
+	# Tenta carregar roughness
+	var rough_path = base_path + "floor_roughness.jpg"
+	if not ResourceLoader.exists(rough_path):
+		rough_path = base_path + "floor_roughness.png"
+	if ResourceLoader.exists(rough_path):
+		var rough_tex = load(rough_path)
+		if rough_tex:
+			material.roughness_texture = rough_tex
 
 
 ## Cria e retorna o material das paredes

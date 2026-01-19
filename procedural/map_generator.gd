@@ -2,9 +2,9 @@ extends Node3D
 class_name MapGenerator
 
 ## MapGenerator - Sistema de geração procedural de arena
-## Gera uma arena 100x100m com obstáculos, boss arenas, e navegação automática.
+## Gera uma arena 250x250m com obstáculos, plataformas, boss arenas, e navegação.
 ##
-## O sistema usa um grid de 10x10 células, cada uma com 10m de tamanho.
+## O sistema usa um grid de 25x25 células, cada uma com 10m de tamanho.
 ## A geração é determinística baseada em seed para reprodutibilidade.
 
 # === SIGNALS ===
@@ -14,10 +14,10 @@ signal generation_completed(seed_used: int)
 signal navmesh_baked()
 
 # === CONFIGURAÇÃO DO GRID ===
-const GRID_SIZE: int = 10  # 10x10 grid
+const GRID_SIZE: int = 25  # 25x25 grid
 const CELL_SIZE: float = 10.0  # Cada célula = 10m
-const ARENA_SIZE: float = GRID_SIZE * CELL_SIZE  # 100m total
-const HALF_ARENA: float = ARENA_SIZE / 2.0  # 50m do centro até borda
+const ARENA_SIZE: float = GRID_SIZE * CELL_SIZE  # 250m total
+const HALF_ARENA: float = ARENA_SIZE / 2.0  # 125m do centro até borda
 
 # === ENUMS ===
 enum CellType {
@@ -27,7 +27,9 @@ enum CellType {
 	PORTAL_ZONE,
 	PLAYER_SPAWN,
 	SPAWN_POINT,
-	CORRIDOR  # Zona garantida de passagem
+	CORRIDOR,  # Zona garantida de passagem
+	PLATFORM,  # Plataforma elevada
+	RAMP       # Rampa de acesso
 }
 
 enum ObstacleType {
@@ -43,11 +45,16 @@ enum ObstacleType {
 
 # === CONFIGURAÇÃO DE GERAÇÃO ===
 @export_group("Generation Settings")
-@export var obstacle_density: float = 0.35  # 35% de ocupação base
-@export var min_obstacles: int = 25
-@export var max_obstacles: int = 45
-@export var boss_arena_radius: float = 12.0  # Raio das arenas de boss
-@export var safe_spawn_radius: float = 8.0  # Área segura ao redor do spawn
+@export var obstacle_density: float = 0.30  # 30% de ocupação base
+@export var min_obstacles: int = 80
+@export var max_obstacles: int = 150
+@export var boss_arena_radius: float = 15.0  # Raio das arenas de boss
+@export var safe_spawn_radius: float = 12.0  # Área segura ao redor do spawn
+
+@export_group("Verticality Settings")
+@export var platform_count_min: int = 6
+@export var platform_count_max: int = 12
+@export var platform_height: float = 3.0
 
 @export_group("Biome Settings")
 @export var current_biome: int = -1  # -1 = random
@@ -68,11 +75,13 @@ var spawn_points: Array[Vector3] = []
 var floor_node: StaticBody3D = null
 var walls_container: Node3D = null
 var obstacles_container: Node3D = null
+var platforms_container: Node3D = null
 var navigation_region: NavigationRegion3D = null
 var lighting_container: Node3D = null
 var spawn_points_container: Node3D = null
 var boss_arenas_container: Node3D = null
 var npc_container: Node3D = null
+var generated_platforms: Array[Node3D] = []
 
 # === BIOME CONFIG ===
 var biome_config: BiomeConfig = null
@@ -98,6 +107,10 @@ func _create_containers() -> void:
 	obstacles_container = Node3D.new()
 	obstacles_container.name = "Obstacles"
 	add_child(obstacles_container)
+
+	platforms_container = Node3D.new()
+	platforms_container.name = "Platforms"
+	add_child(platforms_container)
 
 	lighting_container = Node3D.new()
 	lighting_container.name = "Lighting"
@@ -166,7 +179,15 @@ func generate_map(seed_value: int = -1) -> void:
 
 	# Coloca obstáculos
 	_place_obstacles()
-	generation_progress.emit("Obstáculos colocados", 0.65)
+	generation_progress.emit("Obstáculos colocados", 0.55)
+
+	# Gera plataformas elevadas
+	_generate_platforms()
+	generation_progress.emit("Plataformas geradas", 0.60)
+
+	# Gera rampas de acesso
+	_generate_ramps()
+	generation_progress.emit("Rampas geradas", 0.65)
 
 	# Valida conectividade
 	var valid = _validate_connectivity()
@@ -175,7 +196,7 @@ func generate_map(seed_value: int = -1) -> void:
 		# Tenta novamente com outro seed
 		generate_map(current_seed + 1)
 		return
-	generation_progress.emit("Conectividade validada", 0.75)
+	generation_progress.emit("Conectividade validada", 0.70)
 
 	# Cria spawn points para inimigos
 	_create_spawn_points()
@@ -202,10 +223,12 @@ func generate_map(seed_value: int = -1) -> void:
 	generation_progress.emit("NavMesh baked", 1.0)
 
 	print("[MapGenerator] Mapa gerado com sucesso!")
+	print("  - Arena: ", ARENA_SIZE, "x", ARENA_SIZE, "m")
 	print("  - Player spawn: ", player_spawn_position)
 	print("  - Portal: ", portal_position)
 	print("  - Boss arenas: ", boss_arena_centers.size())
 	print("  - Obstáculos: ", generated_obstacles.size())
+	print("  - Plataformas: ", generated_platforms.size())
 	print("  - Spawn points: ", spawn_points.size())
 
 	generation_completed.emit(current_seed)
@@ -269,6 +292,12 @@ func _clear_previous_generation() -> void:
 			obstacle.queue_free()
 	generated_obstacles.clear()
 
+	# Remove plataformas geradas
+	for platform in generated_platforms:
+		if is_instance_valid(platform):
+			platform.queue_free()
+	generated_platforms.clear()
+
 	# Limpa posições
 	boss_arena_centers.clear()
 	spawn_points.clear()
@@ -279,7 +308,7 @@ func _clear_previous_generation() -> void:
 		floor_node = null
 
 	# Limpa containers
-	for container in [walls_container, obstacles_container, lighting_container,
+	for container in [walls_container, obstacles_container, platforms_container, lighting_container,
 					  spawn_points_container, boss_arenas_container, npc_container]:
 		if container:
 			for child in container.get_children():
@@ -581,6 +610,241 @@ func _place_obstacles() -> void:
 			placed += 1
 
 	print("[MapGenerator] Colocados ", placed, " obstáculos em ", attempts, " tentativas")
+
+
+func _generate_platforms() -> void:
+	"""Gera plataformas elevadas distribuídas pelo mapa para vantagem tática"""
+	var platform_count = randi_range(platform_count_min, platform_count_max)
+	var placed = 0
+	var attempts = 0
+	var max_attempts = platform_count * 10
+
+	while placed < platform_count and attempts < max_attempts:
+		attempts += 1
+
+		# Escolhe célula aleatória (evitando bordas extremas)
+		var x = randi_range(3, GRID_SIZE - 4)
+		var y = randi_range(3, GRID_SIZE - 4)
+
+		# Verifica se pode colocar plataforma
+		if not _can_place_platform(x, y):
+			continue
+
+		# Determina tamanho da plataforma (2x2 a 4x4 células)
+		var platform_size = randi_range(2, 4)
+
+		# Verifica se cabe no espaço
+		if not _platform_fits(x, y, platform_size):
+			continue
+
+		# Cria plataforma
+		var platform = _create_platform(x, y, platform_size)
+		if platform:
+			# Marca células no grid
+			for px in range(platform_size):
+				for py in range(platform_size):
+					if _is_valid_cell(x + px, y + py):
+						grid[x + px][y + py] = CellType.PLATFORM
+
+			generated_platforms.append(platform)
+			platforms_container.add_child(platform)
+			placed += 1
+
+	print("[MapGenerator] Colocadas ", placed, " plataformas")
+
+
+func _can_place_platform(x: int, y: int) -> bool:
+	"""Verifica se pode colocar plataforma na célula"""
+	# Só em células vazias ou corredores
+	if grid[x][y] not in [CellType.EMPTY, CellType.CORRIDOR]:
+		return false
+
+	# Distância mínima de outras plataformas e boss arenas
+	for platform in generated_platforms:
+		if Vector2(x * CELL_SIZE, y * CELL_SIZE).distance_to(
+			Vector2(platform.position.x + HALF_ARENA, platform.position.z + HALF_ARENA)
+		) < CELL_SIZE * 5:
+			return false
+
+	# Não muito perto do spawn ou portal
+	var player_cell = _world_to_grid(player_spawn_position)
+	var portal_cell = _world_to_grid(portal_position)
+	if abs(x - player_cell.x) < 4 and abs(y - player_cell.y) < 4:
+		return false
+	if abs(x - portal_cell.x) < 4 and abs(y - portal_cell.y) < 4:
+		return false
+
+	return true
+
+
+func _platform_fits(x: int, y: int, size: int) -> bool:
+	"""Verifica se plataforma de tamanho 'size' cabe na posição"""
+	for px in range(size):
+		for py in range(size):
+			var cx = x + px
+			var cy = y + py
+			if not _is_valid_cell(cx, cy):
+				return false
+			if grid[cx][cy] not in [CellType.EMPTY, CellType.CORRIDOR]:
+				return false
+	return true
+
+
+func _create_platform(grid_x: int, grid_y: int, size: int) -> StaticBody3D:
+	"""Cria uma plataforma elevada"""
+	var world_pos = _grid_to_world(grid_x, grid_y)
+	# Ajusta posição para centro da plataforma multi-célula
+	var offset = (size - 1) * CELL_SIZE / 2.0
+	world_pos.x += offset
+	world_pos.z += offset
+	world_pos.y = platform_height
+
+	var platform = StaticBody3D.new()
+	platform.name = "Platform_%d_%d" % [grid_x, grid_y]
+	platform.collision_layer = 4
+	platform.collision_mask = 0
+	platform.position = world_pos
+
+	# Tamanho físico da plataforma
+	var platform_width = size * CELL_SIZE - 1.0  # -1 para margem
+	var platform_depth = 0.5
+
+	# Mesh
+	var mesh_instance = MeshInstance3D.new()
+	var box_mesh = BoxMesh.new()
+	box_mesh.size = Vector3(platform_width, platform_depth, platform_width)
+	mesh_instance.mesh = box_mesh
+	mesh_instance.material_override = biome_config.get_obstacle_material(ObstacleType.BOX_LARGE)
+	platform.add_child(mesh_instance)
+
+	# Collision
+	var collision = CollisionShape3D.new()
+	var shape = BoxShape3D.new()
+	shape.size = Vector3(platform_width, platform_depth, platform_width)
+	collision.shape = shape
+	platform.add_child(collision)
+
+	# Adiciona parapeito nas bordas (opcional, para cobertura)
+	_add_platform_railings(platform, platform_width)
+
+	return platform
+
+
+func _add_platform_railings(platform: StaticBody3D, width: float) -> void:
+	"""Adiciona parapeitos baixos nas bordas da plataforma para cobertura"""
+	var railing_height = 1.0
+	var railing_thickness = 0.3
+	var material = biome_config.get_obstacle_material(ObstacleType.WALL_LOW)
+
+	# 4 lados
+	var railing_data = [
+		Vector3(0, railing_height/2 + 0.25, width/2 - railing_thickness/2),   # Frente
+		Vector3(0, railing_height/2 + 0.25, -width/2 + railing_thickness/2),  # Trás
+		Vector3(width/2 - railing_thickness/2, railing_height/2 + 0.25, 0),   # Direita
+		Vector3(-width/2 + railing_thickness/2, railing_height/2 + 0.25, 0)   # Esquerda
+	]
+
+	for i in range(4):
+		var railing = MeshInstance3D.new()
+		var mesh = BoxMesh.new()
+		if i < 2:
+			mesh.size = Vector3(width - 1, railing_height, railing_thickness)
+		else:
+			mesh.size = Vector3(railing_thickness, railing_height, width - 1)
+		railing.mesh = mesh
+		railing.material_override = material
+		railing.position = railing_data[i]
+		platform.add_child(railing)
+
+
+func _generate_ramps() -> void:
+	"""Gera rampas de acesso para cada plataforma"""
+	for platform in generated_platforms:
+		_create_ramp_for_platform(platform)
+
+	print("[MapGenerator] Rampas criadas para ", generated_platforms.size(), " plataformas")
+
+
+func _create_ramp_for_platform(platform: StaticBody3D) -> void:
+	"""Cria uma rampa de acesso para uma plataforma - conecta chão à borda"""
+	var platform_pos = platform.position
+	
+	# Recupera dimensões da plataforma (assumindo que tem um CollisionShape3D Box)
+	var plat_size = Vector3(20, platform_pos.y * 2, 20) # Fallback
+	for child in platform.get_children():
+		if child is CollisionShape3D and child.shape is BoxShape3D:
+			plat_size = child.shape.size
+			break
+			
+	var plat_height = plat_size.y # A altura total da plataforma
+	var plat_half_width = plat_size.x / 2.0
+	var plat_half_depth = plat_size.z / 2.0
+	
+	# Escolhe direção aleatória (0=N, 1=S, 2=E, 3=W)
+	var direction = randi() % 4
+	var ramp_width = 6.0
+	var ramp_thickness = 0.5
+	
+	# Define inclinação suave (quanto maior o denominador, mais suave)
+	var ramp_slope_ratio = 3.0 # 1m sobe a cada 3m anda
+	var ramp_horizontal_len = plat_height * ramp_slope_ratio
+	
+	# Calcula pontos de conexão
+	# Start: Chão (Y=0)
+	# End: Borda da plataforma (Y=plat_height)
+	
+	var start_pos = Vector3.ZERO
+	var end_pos = Vector3.ZERO
+	
+	match direction:
+		0: # Norte (Z negativo) - Conecta na borda norte (Z - half_depth)
+			end_pos = platform_pos + Vector3(0, plat_height / 2.0, -plat_half_depth)
+			start_pos = end_pos + Vector3(0, -plat_height, -ramp_horizontal_len)
+		1: # Sul (Z positivo)
+			end_pos = platform_pos + Vector3(0, plat_height / 2.0, plat_half_depth)
+			start_pos = end_pos + Vector3(0, -plat_height, ramp_horizontal_len)
+		2: # Leste (X positivo)
+			end_pos = platform_pos + Vector3(plat_half_width, plat_height / 2.0, 0)
+			start_pos = end_pos + Vector3(ramp_horizontal_len, -plat_height, 0)
+		3: # Oeste (X negativo)
+			end_pos = platform_pos + Vector3(-plat_half_width, plat_height / 2.0, 0)
+			start_pos = end_pos + Vector3(-ramp_horizontal_len, -plat_height, 0)
+
+	# Cria a rampa usando LookAt para facilitar
+	var ramp = StaticBody3D.new()
+	ramp.name = platform.name + "_Ramp"
+	ramp.collision_layer = 4 # Layer adequada para chão/props
+	ramp.collision_mask = 0
+	
+	# O comprimento real da rampa (hipotenusa)
+	var ramp_length = start_pos.distance_to(end_pos)
+	
+	# Posiciona o corpo da rampa no ponto médio entre start e end
+	var ramp_mid_pos = (start_pos + end_pos) / 2.0
+	ramp.position = ramp_mid_pos
+	
+	# Cria mesh
+	var mesh_instance = MeshInstance3D.new()
+	var box_mesh = BoxMesh.new()
+	# Size: X=Width, Y=Thickness, Z=Length (padrão Godot aponta -Z frente, mas box é centrado)
+	box_mesh.size = Vector3(ramp_width, ramp_thickness, ramp_length)
+	mesh_instance.mesh = box_mesh
+	mesh_instance.material_override = biome_config.get_obstacle_material(ObstacleType.BARRIER)
+	
+	ramp.add_child(mesh_instance)
+	
+	# Cria collision
+	var shape = BoxShape3D.new()
+	shape.size = box_mesh.size
+	var collision = CollisionShape3D.new()
+	collision.shape = shape
+	ramp.add_child(collision)
+	
+	# Orienta a rampa para olhar do start para o end (ou vice versa)
+	# Rampas orientadas no eixo Z (comprimento)
+	ramp.look_at(end_pos, Vector3.UP)
+	
+	platforms_container.add_child(ramp)
 
 
 func _can_place_obstacle(x: int, y: int) -> bool:

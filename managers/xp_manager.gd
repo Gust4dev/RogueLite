@@ -89,6 +89,14 @@ func reset() -> void:
 	total_xp = 0
 	xp_multiplier = 1.0
 	acquired_boss_upgrades.clear()
+	
+	# Aplica bônus de XP do MetaProgression
+	if MetaProgression:
+		var xp_bonus = MetaProgression.get_upgrade_effect("xp_bonus")
+		if xp_bonus > 0:
+			xp_multiplier = 1.0 + xp_bonus
+			print("[XPManager] XP Bonus aplicado: +", int(xp_bonus * 100), "% (Multiplier: ", xp_multiplier, ")")
+	
 	xp_changed.emit(0, get_xp_for_level(1))
 
 

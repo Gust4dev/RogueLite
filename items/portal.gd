@@ -265,9 +265,8 @@ func _enter_portal() -> void:
 
 	await tween.finished
 
-	# Aqui seria a transição para a próxima fase/boss final
-	# Por enquanto, apenas mostra vitória
-	GameManager.win_game()
+	# Avança para o próximo mundo
+	GameManager.advance_to_next_world()
 
 
 func activate() -> void:

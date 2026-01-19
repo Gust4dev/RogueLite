@@ -6,6 +6,9 @@
 
 [node name="LMG" type="Node3D"]
 script = ExtResource("1_lmg")
+viewmodel_scale = Vector3(3.000000, 3.000000, 3.000000)
+viewmodel_rotation = Vector3(0.000000, 0.000000, 0.000000)
+viewmodel_position = Vector3(-0.205000, -0.650000, 0.230000)
 
 [node name="LMGMesh" parent="." instance=ExtResource("3_lmg_mesh")]
 transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0.4, -0.3, -0.7)
@@ -16,4 +19,5 @@ collision_mask = 6
 collide_with_areas = true
 
 [node name="MuzzleFlash" parent="." instance=ExtResource("2_muzzle")]
-transform = Transform3D(1.4, 0, 0, 0, 1.4, 0, 0, 0, 1.4, 0.35, -0.1, -1.1)
+transform = Transform3D(1.684999, 0.000000, -0.001470, 0.000000, 1.685000, 0.000000, 0.001470, 0.000000, 1.684999, 0.390000, -0.305000, -1.555000)
+

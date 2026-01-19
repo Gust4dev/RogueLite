@@ -11,6 +11,7 @@ viewmodel_position = Vector3(0.365, -0.895, -0.17)
 viewmodel_rotation = Vector3(0, 182.2, 0)
 
 [node name="Model" parent="." instance=ExtResource("2_model")]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -0.03999999910593, -0.09499999880791, -0.17000000178814)
 
 [node name="RuntimeDebugger" type="Node" parent="."]
 script = ExtResource("5_debug")
@@ -25,4 +26,11 @@ collide_with_areas = true
 collide_with_bodies = true
 
 [node name="MuzzleFlash" parent="." instance=ExtResource("4_muzzle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, -0.8)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.44999998807907, -0.68500000238419, -1.51999998092651)
+
+
+
+
+
+
+

@@ -40,6 +40,9 @@ var time_scoped: float = 0.0  # Tempo no scope
 
 
 func _ready() -> void:
+	# Define meshes que devem ir para o overlay (ignora Manny/braços)
+	weapon_mesh_keywords = ["sniper", "scope", "barrel"]
+	
 	# === STATS BÁSICOS ===
 	# 100 dmg / 1.5s = ~66.67 DPS (target)
 	damage = 100.0

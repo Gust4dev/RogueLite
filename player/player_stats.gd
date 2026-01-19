@@ -23,6 +23,13 @@ func _process(delta: float) -> void:
 		invulnerability_timer -= delta
 
 func _ready() -> void:
+	# Aplica bônus de HP do MetaProgression
+	if MetaProgression:
+		var hp_bonus = MetaProgression.get_upgrade_effect("hp_bonus")
+		if hp_bonus > 0:
+			max_health = max_health * (1.0 + hp_bonus)
+			print("[PlayerStats] HP Bonus aplicado: +", int(hp_bonus * 100), "% (Max HP: ", max_health, ")")
+	
 	current_health = max_health
 	is_alive = true
 

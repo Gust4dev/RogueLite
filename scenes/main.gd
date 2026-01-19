@@ -26,6 +26,10 @@ func _ready() -> void:
 	# Aguarda um frame para garantir que tudo está carregado
 	await get_tree().process_frame
 
+	# Garante que o HUD fique na frente do ViewModel
+	if hud:
+		hud.layer = 10
+
 	# Verifica se vai usar arena procedural
 	if use_procedural_arena:
 		await _setup_procedural_arena()
@@ -187,21 +191,16 @@ func _spawn_character_weapon() -> void:
 		weapon = pistol_scene.instantiate()
 
 	if weapon and player:
-		# Adiciona arma à câmera
-		player.get_node("Camera3D").add_child(weapon)
+		# Usa a função oficial de equipar para configurar camadas, overlay e limpeza
+		player.equip_weapon(weapon)
 		
-		# Registra como arma atual
-		player.current_weapon = weapon
-
-		# Configura HUD
+		# Configura HUD e UpgradeManager
 		if hud:
 			hud.set_weapon(weapon)
-
-		# Registra arma no UpgradeManager
 		if UpgradeManager:
 			UpgradeManager.set_weapon(weapon)
 
-		print("[Main] Arma equipada: ", weapon.name)
+		print("[Main] Arma equipada via Controller: ", weapon.name)
 
 
 func _register_spawn_points() -> void:

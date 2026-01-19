@@ -57,6 +57,9 @@ signal hit_enemy(enemy: Node3D, damage: float, is_kill: bool)
 # Ammo
 var current_ammo: int = 12
 
+# Identificação de mesh para o sistema de Overlay
+@export var weapon_mesh_keywords: Array[String] = []
+
 # Controle de disparo
 var can_shoot: bool = true
 var is_reloading: bool = false
@@ -125,6 +128,12 @@ func _ready() -> void:
 
 	# Adiciona ao grupo weapons
 	add_to_group("weapons")
+
+	# === VIEWMODEL LAYER PERSISTENCE ===
+	# Garante que a arma comece na camada correta (Layer 2)
+	# O PlayerController chama equip_weapon que define isso, mas aqui reforçamos
+	if get_parent() is Camera3D:
+		_apply_viewmodel_layer()
 
 	# Buscar mesh dinamicamente
 	# Tenta encontrar por nomes comuns primeiro
@@ -276,24 +285,32 @@ func _process(delta: float) -> void:
 		if melee_timer <= 0:
 			can_melee = true
 
-	# Aplica sway à posição (combinado com recoil)
+	# === UPDATE LOGIC ===
+	# Aplica transformações (recoil, sway, etc)
 	_apply_combined_transforms()
 
 
 func _apply_combined_transforms() -> void:
-	"""Aplica todas as transformações combinadas"""
-	if not weapon_recoil:
-		return
-
-	# O recoil já é aplicado pelo próprio sistema WeaponRecoil
-	# Aqui só adicionamos o sway se existir
+	"""Aplica todas as transformações combinadas (Recoil + Sway)"""
+	var final_pos = original_position
+	var final_rot = original_rotation
+	
+	# Soma o offset do Recoil (Relativo à posição original)
+	if weapon_recoil:
+		# current_position já inclui a original_position, então pegamos apenas o offset
+		var recoil_offset = weapon_recoil.current_position - weapon_recoil.original_position
+		var recoil_rot = weapon_recoil.current_rotation - weapon_recoil.original_rotation
+		final_pos += recoil_offset
+		final_rot += recoil_rot
+	
+	# Soma o offset do Sway
 	if weapon_sway and sway_enabled:
-		var sway_offset = weapon_sway.get_total_offset()
-		var sway_rotation = weapon_sway.get_total_rotation()
-
-		# Adiciona sway à posição atual (já com recoil)
-		position = weapon_recoil.current_position + sway_offset
-		rotation = weapon_recoil.current_rotation + sway_rotation
+		final_pos += weapon_sway.get_total_offset()
+		final_rot += weapon_sway.get_total_rotation()
+	
+	# Aplica finalmente
+	position = final_pos
+	rotation = final_rot
 
 func _find_player_camera() -> void:
 	"""Encontra a câmera do player"""
@@ -543,6 +560,9 @@ func add_mouse_sway(input: Vector2) -> void:
 
 func set_movement_state(moving: bool, sprinting: bool) -> void:
 	"""Define estado de movimento para sway"""
+	if moving:
+		# print("[%s] Recebendo sinal de movimento" % name)
+		pass
 	if weapon_sway:
 		weapon_sway.set_movement_state(moving, sprinting)
 
@@ -683,3 +703,21 @@ func _auto_calibrate_mesh() -> void:
 	mesh.position = Vector3(TARGET_POSITION.x, TARGET_POSITION.y + y_offset, TARGET_POSITION.z)
 	
 	# print("[%s] Auto-calibrado: scale=%.4f, y_offset=%.4f" % [name, scale_needed, y_offset])
+
+
+func _apply_viewmodel_layer() -> void:
+	"""Aplica recursivamente a Layer 2 para o overlay"""
+	_set_layer_recursive(self, 2)
+
+
+func _set_layer_recursive(node: Node, layer: int) -> void:
+	"""Reforço de camada - agora usa o PlayerController para centralizar lógica"""
+	var pc = get_tree().get_first_node_in_group("player")
+	if pc and pc.has_method("_set_layer_recursive"):
+		pc._set_layer_recursive(node, layer)
+	else:
+		# Fallback se não encontrar player
+		if node is VisualInstance3D:
+			node.layers = (1 << (layer - 1))
+		for child in node.get_children():
+			_set_layer_recursive(child, layer)

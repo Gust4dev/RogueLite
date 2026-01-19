@@ -60,6 +60,14 @@ func reset() -> void:
 	"""Reseta o dinheiro para nova run"""
 	current_money = 0
 	deep_pockets_active = false
+	
+	# Aplica dinheiro inicial do MetaProgression
+	if MetaProgression:
+		var starting_bonus = int(MetaProgression.get_upgrade_effect("starting_money"))
+		if starting_bonus > 0:
+			current_money = starting_bonus
+			print("[MoneyManager] Starting Money Bonus: +", starting_bonus)
+	
 	money_changed.emit(current_money)
 
 

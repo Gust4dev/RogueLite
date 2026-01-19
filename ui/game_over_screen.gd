@@ -193,9 +193,17 @@ func _populate_stats() -> void:
 	
 	# Level
 	_add_stat_row(stats_container, "📈 Level Reached", str(player_level))
+	
+	# Souls/Currency ganho (Meta Progression)
+	if MetaProgression:
+		var souls_earned = MetaProgression.current_run_stats.get("enemies_killed", 0)
+		souls_earned += MetaProgression.current_run_stats.get("bosses_killed", 0) * 25
+		souls_earned += int(run_time / 30)
+		_add_stat_row(stats_container, "✧ Souls Earned", "+" + str(souls_earned), Color(0.6, 0.4, 1.0))
+		_add_stat_row(stats_container, "✧ Total Souls", str(MetaProgression.meta_currency), Color(0.8, 0.6, 1.0))
 
 
-func _add_stat_row(container: Control, label_text: String, value_text: String) -> void:
+func _add_stat_row(container: Control, label_text: String, value_text: String, value_color: Color = Color(1.0, 0.9, 0.7)) -> void:
 	var row = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	
@@ -209,7 +217,7 @@ func _add_stat_row(container: Control, label_text: String, value_text: String) -
 	var value = Label.new()
 	value.text = value_text
 	value.add_theme_font_size_override("font_size", 20)
-	value.add_theme_color_override("font_color", Color(1.0, 0.9, 0.7))
+	value.add_theme_color_override("font_color", value_color)
 	row.add_child(value)
 	
 	container.add_child(row)

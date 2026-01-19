@@ -57,7 +57,8 @@ func _process(delta: float) -> void:
 		return
 
 	_update_kickback(delta)
-	_apply_to_weapon()
+	# REMOVIDO: _apply_to_weapon()
+	# O BaseWeapon agora é quem combina recoil + sway para evitar conflitos de posição.
 
 
 func _update_kickback(delta: float) -> void:
