@@ -36,6 +36,9 @@ var is_trigger_held: bool = false
 
 
 func _ready() -> void:
+	# Define meshes que devem ir para o overlay (ignora braços/corpo)
+	weapon_mesh_keywords = ["smg", "mp5", "kdw", "gun", "weapon"]
+
 	# === STATS BÁSICOS ===
 	# 7 dmg / 0.08s = ~87.5 DPS (target: 87)
 	damage = 7.0

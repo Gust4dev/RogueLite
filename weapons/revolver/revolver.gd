@@ -17,6 +17,9 @@ var burst_recoil_at_max_level: float = 0.1  # Praticamente zero no nível máxim
 
 
 func _ready() -> void:
+	# Define meshes que devem ir para o overlay (ignora braços/corpo)
+	weapon_mesh_keywords = ["revolver", "cylinder", "barrel", "hammer", "gun", "weapon"]
+
 	# === STATS BÁSICOS ===
 	# 40 dmg / 0.6s = ~66 DPS (target)
 	damage = 40.0

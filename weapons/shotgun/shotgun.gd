@@ -33,6 +33,9 @@ var pump_time: float = 0.4  # Tempo da animação de pump
 
 
 func _ready() -> void:
+	# Define meshes que devem ir para o overlay (ignora braços/corpo)
+	weapon_mesh_keywords = ["shotgun", "pump", "barrel", "stock", "gun", "weapon"]
+
 	# === STATS BÁSICOS ===
 	# 8 pellets * 8 dmg = 64 / 0.8s = 80 DPS (target)
 	damage = damage_per_pellet  # Dano por pellet

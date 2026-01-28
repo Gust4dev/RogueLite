@@ -180,8 +180,6 @@ func _setup_viewmodel_overlay() -> void:
 	rim_light.omni_range = 10.0
 	rim_light.position = Vector3(0, 0, -2.0)
 	viewmodel_camera.add_child(rim_light)
-	
-	print("[Player] ViewModel Lighting Rig (3-Point) configurado.")
 
 
 func _setup_aim_assist() -> void:
@@ -447,32 +445,44 @@ func equip_weapon(weapon: Node3D) -> void:
 		camera.add_child(weapon)
 	
 	# Coloca a arma na Layer 2 (Viewmodel) recursivamente
-	print("[Player] --- TREE DUMP: ", weapon.name, " ---")
-	weapon.print_tree()
 	_set_layer_recursive(weapon, 2)
-	
-	# Verificação final: imprime o estado de TODAS as meshes
-	print("[Player] --- FINAL STATE CHECK ---")
-	_verify_layer_state(weapon)
-	
-	print("[Player] Arma equipada (Layer 2)")
+
+	# Verificação silenciosa (ativar para debug se necessário)
+	# _verify_layer_state(weapon)
 
 
 func _set_layer_recursive(node: Node, layer: int, parent_hidden: bool = false) -> void:
 	"""Define a layer de visualização e DESATIVA braços/corpo da hierarquia com Whitelist"""
 	var n = node.name.to_lower()
-	
-	# Log de TODOS os nós para diagnóstico
-	# printerr("[NODE] ", node.name, " (", node.get_class(), ") parent_hidden=", parent_hidden)
-	
+
 	# Pega keywords da arma atual para whitelist
-	var weapon_keywords = []
+	var weapon_keywords: Array[String] = []
 	if current_weapon and "weapon_mesh_keywords" in current_weapon:
 		weapon_keywords = current_weapon.weapon_mesh_keywords
-	
-	# Verifica se é uma parte proibida (Blacklist) - ATUALIZADO com mais palavras
-	var is_blacklist = "body" in n or "head" in n or "arm" in n or "hand" in n or "finger" in n or "man" in n or "skeleton" in n or "mensch" in n or "fullbody" in n or "pole" in n
-	
+
+	# Blacklist expandida - partes de corpo/esqueleto que devem ser escondidas
+	var blacklist_terms = [
+		"body", "head", "arm", "hand", "finger", "man", "manny",
+		"skeleton", "mensch", "fullbody", "pole", "spine", "pelvis",
+		"clavicle", "shoulder", "elbow", "wrist", "leg", "thigh",
+		"knee", "ankle", "foot", "toe", "neck", "hips", "root_motion",
+		"ik_", "fk_", "ctrl", "helper", "bone"
+	]
+
+	# Verifica se é uma parte proibida (Blacklist)
+	var is_blacklist = false
+	for term in blacklist_terms:
+		if term in n:
+			is_blacklist = true
+			break
+
+	# Exceções da blacklist - partes que parecem blacklist mas são da arma
+	var blacklist_exceptions = ["barrel", "handle", "stock", "magazine", "grip"]
+	for exc in blacklist_exceptions:
+		if exc in n:
+			is_blacklist = false
+			break
+
 	# Verifica se é a arma (Whitelist - se houver keywords)
 	var is_whitelist = false
 	if weapon_keywords.size() > 0:
@@ -480,37 +490,47 @@ func _set_layer_recursive(node: Node, layer: int, parent_hidden: bool = false) -
 			if kw.to_lower() in n:
 				is_whitelist = true
 				break
-	else:
-		# Se não tem keywords, fallback para lógica antiga (assume que tudo visível que não é blacklist é arma)
-		is_whitelist = not is_blacklist
-	
-	# Nodes que devem ser escondidos: se forem blacklist ou se o pai estiver escondido
-	var should_hide = parent_hidden or is_blacklist or (weapon_keywords.size() > 0 and not is_whitelist and node is VisualInstance3D and node.get_parent() is Skeleton3D)
-	
-	# Trata QUALQUER Node3D (não só VisualInstance3D) para esconder braços
+
+	# Se não tem keywords definidos, usa fallback mais permissivo
+	if weapon_keywords.size() == 0:
+		# Assume que MeshInstance3D que não é blacklist é parte da arma
+		if node is MeshInstance3D and not is_blacklist:
+			is_whitelist = true
+		# Node3D genéricos também são permitidos se não forem blacklist
+		elif node is Node3D and not is_blacklist and not node is Skeleton3D:
+			is_whitelist = true
+
+	# Esconde Skeleton3D e BoneAttachment3D sempre (são estruturas internas)
+	var is_skeleton_structure = node is Skeleton3D or node.get_class() == "BoneAttachment3D"
+
+	# Determina se deve esconder
+	var should_hide = parent_hidden or is_blacklist or is_skeleton_structure
+
+	# Processa o nó
 	if node is Node3D:
-		if should_hide:
-			printerr("[LAYER] HIDE Node3D: ", node.name, " (", node.get_class(), ")")
+		if should_hide and not is_whitelist:
+			# Esconde nós da blacklist
 			node.visible = false
 		elif node is VisualInstance3D:
-			if is_whitelist:
-				printerr("[LAYER] SHOW: ", node.name, " -> Layer 2")
-				node.layers = (1 << (layer - 1)) # Move para Overlay (Layer 2)
+			# Configura layer para meshes visíveis
+			if is_whitelist or (not is_blacklist and not is_skeleton_structure):
+				node.layers = (1 << (layer - 1)) # Layer 2 para overlay
+				node.visible = true
 			else:
-				printerr("[LAYER] SKIP: ", node.name, " (stays Layer 1)")
-				node.layers = 1  # Garante Layer 1
-	
-	# Propaga o estado de 'escondido'
+				node.visible = false
+
+	# Propaga recursivamente
 	for child in node.get_children():
-		_set_layer_recursive(child, layer, should_hide)
+		_set_layer_recursive(child, layer, should_hide and not is_whitelist)
 
 
 func _verify_layer_state(node: Node) -> void:
-	"""Verifica e imprime o estado final de todas as meshes"""
-	if node is VisualInstance3D:
-		var mesh = node as VisualInstance3D
-		printerr("[VERIFY] ", mesh.name, " visible=", mesh.visible, " layer=", mesh.layers)
-	
+	"""Verifica o estado final de todas as meshes (debug silencioso)"""
+	# Debug desativado para produção
+	# if node is VisualInstance3D:
+	# 	var mesh = node as VisualInstance3D
+	# 	print("[VERIFY] ", mesh.name, " visible=", mesh.visible, " layer=", mesh.layers)
+
 	for child in node.get_children():
 		_verify_layer_state(child)
 
