@@ -51,6 +51,9 @@ signal spindown_complete()
 
 
 func _ready() -> void:
+	# Define meshes que devem ir para o overlay (ignora braços/corpo)
+	weapon_mesh_keywords = ["lmg", "minigun", "barrel", "ammo", "gun", "weapon"]
+
 	# === STATS BÁSICOS ===
 	# 12 dmg / 0.1s = 120 DPS (target)
 	damage = 12.0
